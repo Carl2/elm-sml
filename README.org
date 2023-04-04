@@ -1,0 +1,17 @@
+#+OPTIONS: broken-links:t
+#+author: calle
+#+title: Elm-SML
+
+
+* Idea
+
+The idea is to create a statemachine. As for now the statemachine will
+be defined in from a table and the table will be transformed to [[https://github.com/boost-ext/sml][SML]].
+
+
+| Start | Next  |       |                 |        |         |
+| State | State | Event | Guard           | Action | Comment |
+|-------+-------+-------+-----------------+--------+---------|
+| S0    | S1    | Ev0   |                 | print  |         |
+| S1    | S2    | Ev1   | check_context   | print  |         |
+| S2    | S0    |       | check_something | print  |         |
