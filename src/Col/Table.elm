@@ -1,39 +1,50 @@
-module Col.Table exposing (make_tbl)
+module Col.Table exposing ( makeInput,makeTableRow, ViewInputItem)
 
-import Html exposing (Html, text, table, tr, td)
+-- import Html exposing (Html, text, table, tr, td)
+import Html exposing (Html, Attribute, div, input, text, table , tr , td)
+import Html.Attributes exposing (..)
+import Html.Events exposing (onInput)
 
 
-make_tbl : Html msg
-make_tbl =
-    table []
-        [ tr [] [ td [] [ text "Row 1, Column 1" ]
-                , td [] [ text "Row 1, Column 2" ]
-                , td [] [ text "Row 1, Column 3" ]
-                , td [] [ text "Row 1, Column 4" ]
-                , td [] [ text "Row 1, Column 5" ]
-                ]
-        , tr [] [ td [] [ text "Row 2, Column 1" ]
-                , td [] [ text "Row 2, Column 2" ]
-                , td [] [ text "Row 2, Column 3" ]
-                , td [] [ text "Row 2, Column 4" ]
-                , td [] [ text "Row 2, Column 5" ]
-                ]
-        , tr [] [ td [] [ text "Row 3, Column 1" ]
-                , td [] [ text "Row 3, Column 2" ]
-                , td [] [ text "Row 3, Column 3" ]
-                , td [] [ text "Row 3, Column 4" ]
-                , td [] [ text "Row 3, Column 5" ]
-                ]
-        , tr [] [ td [] [ text "Row 4, Column 1" ]
-                , td [] [ text "Row 4, Column 2" ]
-                , td [] [ text "Row 4, Column 3" ]
-                , td [] [ text "Row 4, Column 4" ]
-                , td [] [ text "Row 4, Column 5" ]
-                ]
-        , tr [] [ td [] [ text "Row 5, Column 1" ]
-                , td [] [ text "Row 5, Column 2" ]
-                , td [] [ text "Row 5, Column 3" ]
-                , td [] [ text "Row 5, Column 4" ]
-                , td [] [ text "Row 5, Column 5" ]
-                ]
-        ]
+
+
+
+
+
+type alias ViewInputItem msg =
+    { input_type : String
+    , placeholder : String
+    , value : String
+    , toMsg : (String -> msg )
+    , html : List (Html msg)
+    }
+
+type alias TableRowItem msg =
+    { startState : ViewInputItem msg
+    ,endState: ViewInputItem msg
+    ,guard: ViewInputItem msg
+    ,action: ViewInputItem msg
+    }
+
+
+makeInput:ViewInputItem msg -> Html msg
+makeInput view =
+    input [type_ view.input_type, placeholder view.placeholder, value view.value, onInput view.toMsg] view.html
+
+
+tableData: ViewInputItem msg -> Html msg
+tableData inputData =
+    td [] [makeInput inputData]
+
+
+makeTableRow: List (ViewInputItem msg) -> Html msg
+makeTableRow tableRowItem =
+        tr [] (List.map (\item -> tableData item) tableRowItem)
+
+
+-- makeTable: List (ViewInputItem msg) -> Html msg
+-- makeTable tblRows =
+--     let
+--         htmlRows = List.map (\tblRow -> makeTableRow tblRow) tblRows
+--     in
+--     table [] htmlRows
