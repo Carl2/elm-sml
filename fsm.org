@@ -1,0 +1,20 @@
+#+OPTIONS: broken-links:t
+#+author: calle
+#+title: FSM
+#+filetags: elm programming language web
+#+HTML_HEAD: <link href="extra/prism.css" rel="stylesheet" />
+#+HTML_HEAD: <script src="extra/prism.js"></script>
+
+
+
+#+begin_export html
+  <div id="elm-app"></div>
+
+
+  <script src="elm.js"></script>
+    <script>
+      var app = Elm.Main.init({
+        node: document.getElementById("elm-app")
+      });
+    </script>
+#+end_export
