@@ -15,3 +15,11 @@ be defined in from a table and the table will be transformed to [[https://github
 | S0    | S1    | Ev0   |                 | print  |         |
 | S1    | S2    | Ev1   | check_context   | print  |         |
 | S2    | S0    |       | check_something | print  |         |
+
+
+* Using Prism
+
+#+begin_src example
+<link href="path/to/prism.css" rel="stylesheet" />
+<script src="path/to/prism.js"></script>
+#+end_src
