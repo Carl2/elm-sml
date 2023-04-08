@@ -10,36 +10,53 @@ import Browser
 main =
     Browser.sandbox{ init = init, update = update, view = view}
 
+
+type alias RowItem =
+    { rowNr : Int
+    , colNr: Int
+    , value: String
+    }
+
+
+
 type alias Model =
     {
-        startState : String
-    ,endState: String
+        startState : RowItem
+    ,endState: RowItem
     }
 
 
 init: Model
 init =
-    {
-        startState= ""
-    ,endState= ""
+    {startState = { rowNr = 0,colNr = 0, value = ""}
+    ,endState = { rowNr = 0, colNr = 0, value = ""}
     }
 
--- type alias RowItem =
---     { rowNr : Int
---     ,colNr : Int
---     ,val : String
---     }
 
 
 type Msg = StartState String
          | EndState String
 
 
+updateModelValue: String -> RowItem -> RowItem
+updateModelValue newVal row =
+    {row | value = newVal}
+
 update: Msg -> Model -> Model
 update msg model =
     case msg of
-        StartState newContent -> { model | startState =  newContent}
-        EndState newContent -> { model | endState =  newContent}
+        StartState newContent ->
+            let
+                row = updateModelValue newContent model.startState
+            in
+                { model | startState = row}
+
+        EndState newContent ->
+            let
+                row = updateModelValue newContent model.endState
+            in
+                { model | endState = row}
+
 
 
 
@@ -52,8 +69,8 @@ view: Model -> Html Msg
 view model =
     let
 
-         tblList = [ Def.startStateInput StartState |> updateState model.startState
-                   ,Def.endStateInput EndState |> updateState model.endState]
+         tblList = [ Def.startStateInput StartState |> updateState model.startState.value
+                   ,Def.endStateInput EndState |> updateState model.endState.value]
 
          tableRow = Tbl.makeTableRow tblList
 
