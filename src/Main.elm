@@ -1,7 +1,7 @@
 module Main exposing (main)
 import Col.Table as Tbl exposing (..)
 import Col.TableDef as Def exposing(..)
-import Html exposing (Html, text, table, tr, td, input,div,button)
+import Html exposing (Html, text, table, tr, td, input,div,button,code,pre)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput)
 import Browser
@@ -74,11 +74,18 @@ view model =
 
          tableRow = Tbl.makeTableRow tblList
 
-
     in
         div []
             [--Tbl.makeInput tbl
              table [] [tableRow]
+            , pre [] [
+                  code [class "language-cpp"] [text <|
+                                                   """int main()
+                                                    {
+                                                    std::cout << \"Hello\" << std::endl;
+                                                    }
+                                                    """]
+                 ]
             -- [input [ placeholder "Text to reverse", value model.startState, onInput Change ] []
             -- ,div [] [ text (String.reverse model.startState) ]
             -- ,Tbl.makeTable [tbl]
