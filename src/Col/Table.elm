@@ -34,12 +34,12 @@ makeInput view =
 
 tableData: ViewInputItem msg -> Html msg
 tableData inputData =
-    td [] [makeInput inputData]
+    td [] [(makeInput inputData )]
 
 
-makeTableRow: List (ViewInputItem msg) -> Html msg
-makeTableRow tableRowItem =
-        tr [] (List.map (\item -> tableData item) tableRowItem)
+makeTableRow: String -> List (ViewInputItem msg)  -> Html msg
+makeTableRow rowNr tableRowItem =
+        tr []  ((text rowNr) :: (List.map (\item -> tableData item) tableRowItem ))
 
 
 -- makeTable: List (ViewInputItem msg) -> Html msg
