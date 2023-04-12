@@ -55,7 +55,7 @@ make_fsm_row start end event guard action =
                             args
 
                 args1 = if isNotEmpty event then
-                           updateAtIndex 1 ("event<" ++ event ++">") args0
+                           updateAtIndex 1 ("+ event<" ++ event ++">") args0
                        else
                            args0
 

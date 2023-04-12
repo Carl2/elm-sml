@@ -3,7 +3,7 @@ module Main exposing (main)
 --import Col.TableDef as Def exposing ()
 
 import Browser
-import Col.CppData as Cpp exposing (make_cpp_data,make_fsm_row)
+import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row)
 import Col.Table as Tbl exposing (..)
 import Html exposing (Html, button, code, div, input, pre, table, td, text, tr)
 import Html.Attributes exposing (..)
@@ -107,14 +107,36 @@ main =
 
 
 cpp_data : Model -> Int -> String
-cpp_data model rowIdx =
-    -- For now we just use the first row
-    case model.tableData of
-        (row :: _) ->
+cpp_data modl rowIdx =
+    let
+        maybeRow =
+            List.drop rowIdx modl.tableData |> List.head
+    in
+    case maybeRow of
+        Just row ->
             case row of
-                [start,end,ev ,guard,action]  ->
+                [ start, end, ev, guard, action ] ->
                     case Cpp.make_fsm_row start end ev guard action of
-                        Ok fsmRow -> Cpp.make_cpp_data fsmRow
-                        Err err   -> err
-                _ -> ""
-        _ -> ""
+                        Ok fsmRow ->
+                            Cpp.make_cpp_data fsmRow
+                        Err err ->
+                            err
+                _ ->
+                    ""
+        Nothing ->
+            ""
+
+
+
+-- cpp_data : Model -> Int -> String
+-- cpp_data model rowIdx =
+--     -- For now we just use the first row
+--     case model.tableData of
+--         (row :: _) ->
+--             case row of
+--                 [start,end,ev ,guard,action]  ->
+--                     case Cpp.make_fsm_row start end ev guard action of
+--                         Ok fsmRow -> Cpp.make_cpp_data fsmRow
+--                         Err err   -> err
+--                 _ -> ""
+--         _ -> ""
