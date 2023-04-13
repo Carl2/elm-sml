@@ -5,7 +5,7 @@ module Main exposing (main)
 import Browser
 import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row)
 import Col.Table as Tbl exposing (..)
-import Html exposing (Html, button, code, div, input, pre, table, td, text, tr)
+import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,span)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput)
 
@@ -82,9 +82,10 @@ view model =
                 )
                 model.tableData
             )
-        , pre []
+        , pre [] --TODO: Need to figure out how to use with text.. https://github.com/elm/virtual-dom/issues/148
             [ code [ class "language-cpp" ]
-                [ text <| make_cpp_data "apa" ]
+                  [span [] [ text (cpp_data model 0) ]]
+
             ]
         ]
 
@@ -118,25 +119,10 @@ cpp_data modl rowIdx =
                 [ start, end, ev, guard, action ] ->
                     case Cpp.make_fsm_row start end ev guard action of
                         Ok fsmRow ->
-                            Cpp.make_cpp_data fsmRow
+                            Debug.log "Logg" (Cpp.make_cpp_data fsmRow)
                         Err err ->
                             err
                 _ ->
                     ""
         Nothing ->
             ""
-
-
-
--- cpp_data : Model -> Int -> String
--- cpp_data model rowIdx =
---     -- For now we just use the first row
---     case model.tableData of
---         (row :: _) ->
---             case row of
---                 [start,end,ev ,guard,action]  ->
---                     case Cpp.make_fsm_row start end ev guard action of
---                         Ok fsmRow -> Cpp.make_cpp_data fsmRow
---                         Err err   -> err
---                 _ -> ""
---         _ -> ""

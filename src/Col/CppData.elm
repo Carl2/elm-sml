@@ -1,6 +1,7 @@
 module Col.CppData exposing (make_cpp_data,make_fsm_row)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
+import Debug
 
 
 
@@ -15,7 +16,7 @@ struct StateMachine
     return make_transition_table(
         //-[CurrentState]---|------[Event]-----|---[Guard]----|--[Action]---|--Next State-----
         {0}
-                                 );
+    );
     // clang-format on
   }
 };
