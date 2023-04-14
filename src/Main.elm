@@ -3,7 +3,7 @@ module Main exposing (main)
 --import Col.TableDef as Def exposing ()
 
 import Browser
-import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row)
+import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row,makeFsmRowTable)
 import Col.Table as Tbl exposing (..)
 import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,span)
 import Html.Attributes exposing (..)
@@ -82,14 +82,29 @@ view model =
                 )
                 model.tableData
             )
-        , pre [] --TODO: Need to figure out how to use with text.. https://github.com/elm/virtual-dom/issues/148
-            [ code [ class "language-cpp" ]
-                  [span [] [ text (cpp_data model 0) ]]
+         --, pre [] --TODO: Need to figure out how to use with text.. https://github.com/elm/virtual-dom/issues/148
+         --   [ code [ class "language-cpp" ] [ text (cpp_data model 0) ]
+         --         --[span [] [ text (cpp_data model 0) ]]
+         --         --[span [] [ text (makeFsmRowTable model.tableData) ]]
+         --   ]
+              ,makeCodeOutput model
 
-            ]
         ]
 
 
+-------------------------------------------------------------------------------
+--                              Make code output                             --
+-------------------------------------------------------------------------------
+makeCodeOutput: Model -> Html msg
+makeCodeOutput model =
+    let
+        cppStr =makeFsmRowTable model.tableData
+               |> make_cpp_data
+               |> text
+
+    in
+        pre [] [cppStr]
+            --[code [class "language-cpp"] [cppStr]]
 
 -------------------------------------------------------------------------------
 --                                    Old                                    --
