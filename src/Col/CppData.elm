@@ -29,8 +29,8 @@ isNotEmpty : String -> Bool
 isNotEmpty str =
     not (String.isEmpty str)
 
-make_fsm_row : String -> String -> String -> String -> String -> Result String String
-make_fsm_row start end event guard action =
+make_fsm_row : Int -> String -> String -> String -> String -> String -> Result String String
+make_fsm_row lineNr start end event guard action =
     let
         updateAtIndex idx val lst =
             List.indexedMap
@@ -42,7 +42,11 @@ make_fsm_row start end event guard action =
                 )
                 lst
         interpolateString = "{0}   {1}   {2}   {3}   {4}"
-        args = [start, event, guard, action, end]
+        startWithPre = if lineNr == 0 then
+                           "*" ++ start
+                       else
+                           "," ++ start
+        args = [startWithPre, event, guard, action, end]
     in
         if String.isEmpty start then
             Err "Error: Start state is mandatory"
@@ -69,11 +73,11 @@ make_fsm_row start end event guard action =
 
 
 
-makeFsmRow: List String -> Maybe String
-makeFsmRow lstStr =
+makeFsmRow: Int -> List String -> Maybe String
+makeFsmRow lineNr lstStr =
     case lstStr of
         [ start, end, ev, guard, action ] ->
-            case make_fsm_row start end ev guard action of
+            case make_fsm_row lineNr start end ev guard action of
                 Ok row -> Just row
                 Err err -> Debug.log err Nothing
         _ -> Nothing
@@ -84,9 +88,9 @@ makeFsmRow lstStr =
 makeFsmRowTable: List (List String ) -> String
 makeFsmRowTable lstLstStr =
     let
-        lstMaybeStr = List.map makeFsmRow lstLstStr --Will create a List (Maybe str)
-                                                    -- which will be
-    -- Now we concatenate the strings (not)
+        lstMaybeStr = List.indexedMap makeFsmRow lstLstStr --Will create a List (Maybe str)
+
+                                                    -- Now we concatenate the strings (not)
         concatenate_str maybeStr prev = case maybeStr of
                                             Just row -> Debug.log ("new row"++row) (row ++ "\n        " ++ prev)
                                             Nothing -> prev

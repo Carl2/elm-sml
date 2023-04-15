@@ -103,8 +103,8 @@ makeCodeOutput model =
                |> text
 
     in
-        pre [] [cppStr]
-            --[code [class "language-cpp"] [cppStr]]
+        pre [id "cpp-code-block"] [code [class "language-cpp"] [cppStr]] --[cppStr]
+
 
 -------------------------------------------------------------------------------
 --                                    Old                                    --
@@ -122,22 +122,22 @@ main =
 -------------------------------------------------------------------------------
 
 
-cpp_data : Model -> Int -> String
-cpp_data modl rowIdx =
-    let
-        maybeRow =
-            List.drop rowIdx modl.tableData |> List.head
-    in
-    case maybeRow of
-        Just row ->
-            case row of
-                [ start, end, ev, guard, action ] ->
-                    case Cpp.make_fsm_row start end ev guard action of
-                        Ok fsmRow ->
-                            Debug.log "Logg" (Cpp.make_cpp_data fsmRow)
-                        Err err ->
-                            err
-                _ ->
-                    ""
-        Nothing ->
-            ""
+-- cpp_data : Model -> Int -> String
+-- cpp_data modl rowIdx =
+--     let
+--         maybeRow =
+--             List.drop rowIdx modl.tableData |> List.head
+--     in
+--     case maybeRow of
+--         Just row ->
+--             case row of
+--                 [ start, end, ev, guard, action ] ->
+--                     case Cpp.make_fsm_row start end ev guard action of
+--                         Ok fsmRow ->
+--                             Debug.log "Logg" (Cpp.make_cpp_data fsmRow)
+--                         Err err ->
+--                             err
+--                 _ ->
+--                     ""
+--         Nothing ->
+--             ""
