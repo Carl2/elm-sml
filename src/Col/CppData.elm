@@ -8,22 +8,22 @@ import Debug
 
 cpp_data: String
 cpp_data = """
-struct StateMachine
+struct {0}
 {
   auto operator()() const {
     using namespace sml;
     // clang-format off
     return make_transition_table(
         //-[CurrentState]---|------[Event]-----|---[Guard]----|--[Action]---|--Next State-----
-        {0}
+        {1}
     );
     // clang-format on
   }
 };
 """
 
-make_cpp_data: String -> String
-make_cpp_data str = interpolate cpp_data [str]
+make_cpp_data: String -> String -> String
+make_cpp_data modelName str = interpolate cpp_data [modelName ,str]
 
 isNotEmpty : String -> Bool
 isNotEmpty str =
