@@ -67,16 +67,21 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ input
-              [ type_ "text"
-              , placeholder "StateMachine Name"
-              , Html.Events.onInput UpdateMachineName
-              ] []
+        [ makeSystemNameInput model
         ,table [] (makeModelTable model)
         ,makeCodeOutput model
 
         ]
 
+
+makeSystemNameInput: Model -> Html Msg
+makeSystemNameInput model =
+    div [ ] [
+         text "Statemachine Name: "
+        ,input [ type_ "text"
+               , placeholder "StateMachine Name"
+               , Html.Events.onInput UpdateMachineName] []
+        ]
 
 -------------------------------------------------------------------------------
 --                              Make code output                             --
