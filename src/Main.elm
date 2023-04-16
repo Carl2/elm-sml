@@ -62,31 +62,7 @@ update msg model =
 view : Model -> Html Msg
 view model =
     div []
-        [ table []
-            (List.indexedMap
-                (\rowIndex row ->
-                    tr []
-                        (List.indexedMap
-                            (\fieldIndex _ ->
-                                td []
-                                    [ input
-                                        [ type_ "text"
-                                        , placeholder "Enter text"
-                                        , Html.Events.onInput (\newValue -> UpdateField rowIndex fieldIndex newValue)
-                                        ]
-                                        []
-                                    ]
-                            )
-                            row
-                        )
-                )
-                model.tableData
-            )
-         --, pre [] --TODO: Need to figure out how to use with text.. https://github.com/elm/virtual-dom/issues/148
-         --   [ code [ class "language-cpp" ] [ text (cpp_data model 0) ]
-         --         --[span [] [ text (cpp_data model 0) ]]
-         --         --[span [] [ text (makeFsmRowTable model.tableData) ]]
-         --   ]
+        [ table [] (makeModelTable model)
               ,makeCodeOutput model
 
         ]
@@ -114,3 +90,69 @@ makeCodeOutput model =
 
 main =
     Browser.sandbox { init = init, update = update, view = view }
+
+
+-------------------------------------------------------------------------------
+--                              Make html table                              --
+-------------------------------------------------------------------------------
+makeModelTable: Model -> List (Html Msg)
+makeModelTable model =
+    let
+        forEachField rowIndex row = List.indexedMap (\fieldIndex _ -> td []
+                                                         [ input
+                                                               [ type_ "text"
+                                                               , placeholder (getPlaceHolderText fieldIndex)
+                                                               , Html.Events.onInput
+                                                                     (\newValue -> UpdateField
+                                                                          rowIndex
+                                                                          fieldIndex
+                                                                          newValue)
+                                                               ]
+                                                               []
+                                                         ]
+                                                    ) row
+        forEachRow rows = List.indexedMap (\rowIndex row -> tr [] (forEachField rowIndex row)) rows
+    in
+        (List.append makeHeader (forEachRow model.tableData))
+
+
+
+
+
+
+makeHeader: List (Html msg)
+makeHeader =
+    [
+     Html.caption [] [Html.text "Generation of Statemachine"]
+    ,Html.th [style "background-color" "black", style "color" "white"] [
+           Html.text "Start State"
+          ]
+    ,Html.th [style "background-color" "black", style "color" "white"] [
+           Html.text "End State"
+          ]
+    ,Html.th [style "background-color" "blue", style "color" "white"] [
+           Html.text "Event"
+          ]
+    ,Html.th [style "background-color" "red", style "color" "white"] [
+           Html.text "Guard"
+          ]
+    ,Html.th [style "background-color" "green", style "color" "white"] [
+           Html.text "Action"
+          ]
+    ]
+
+
+getPlaceHolderText: Int -> String
+getPlaceHolderText idx =
+    if idx == 0 then
+        "Start state name"
+    else if idx == 1 then
+        "End state name"
+    else if idx == 2 then
+        "Event Name"
+    else if idx == 3 then
+        "Guard (fn) name"
+    else if idx == 4 then
+        "Action (fn) name"
+    else
+        "Unknown"
