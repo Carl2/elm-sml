@@ -1,9 +1,9 @@
-module Col.CppData exposing (make_cpp_data,make_fsm_row,makeFsmRowTable)
+module Col.CppData exposing (make_cpp_data,make_fsm_row,makeFsmRowTable,defaultName)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import Debug
 
-
+defaultName = "StateMachine"
 
 
 cpp_data: String
@@ -23,7 +23,14 @@ struct {0}
 """
 
 make_cpp_data: String -> String -> String
-make_cpp_data modelName str = interpolate cpp_data [modelName ,str]
+make_cpp_data modelName str =
+    let
+        fixedModelName = if String.isEmpty modelName then
+                             defaultName
+                         else
+                             modelName
+    in
+    interpolate cpp_data [fixedModelName ,str]
 
 isNotEmpty : String -> Bool
 isNotEmpty str =

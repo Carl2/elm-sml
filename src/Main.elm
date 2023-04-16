@@ -23,7 +23,7 @@ type alias Model =
 init : Model
 init =
     { tableData = List.repeat 5 (List.repeat 5 ""),
-          systemName = "StateMachine"
+          systemName = Cpp.defaultName
     }
 
 
