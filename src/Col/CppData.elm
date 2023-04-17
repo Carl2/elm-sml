@@ -1,36 +1,39 @@
-module Col.CppData exposing (make_cpp_data,make_fsm_row,makeFsmRowTable,defaultName)
+module Col.CppData exposing (make_cpp_data,make_fsm_row,makeFsmRowTable,defaultName,makeConstexprClass)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
+import List.Extra as ListExtra
 import Debug
 
 defaultName = "StateMachine"
+constexprFmt = "constexpr static auto {0} = sml:::state<class {0}>;"
 
 
 cpp_data: String
 cpp_data = """
 struct {0}
 {
+ {1}
   auto operator()() const {
     using namespace sml;
     // clang-format off
     return make_transition_table(
         //-[CurrentState]---|------[Event]-----|---[Guard]----|--[Action]---|--Next State-----
-        {1}
+        {2}
     );
     // clang-format on
   }
 };
 """
 
-make_cpp_data: String -> String -> String
-make_cpp_data modelName str =
+make_cpp_data: String -> String -> String -> String
+make_cpp_data stateClass modelName str =
     let
         fixedModelName = if String.isEmpty modelName then
                              defaultName
                          else
                              modelName
     in
-    interpolate cpp_data [fixedModelName ,str]
+    interpolate cpp_data [fixedModelName,stateClass ,str]
 
 isNotEmpty : String -> Bool
 isNotEmpty str =
@@ -103,3 +106,48 @@ makeFsmRowTable lstLstStr =
                                             Nothing -> prev
     in
         List.foldr concatenate_str "" lstMaybeStr
+
+
+-------------------------------------------------------------------------------
+--                             Make sml constexpr                            --
+--  The idea is to make constexpr sml of the states.
+--  For each row.
+--    Get the start and end state (index 0,1) and if they are unique
+--    Transform that into a string of type:
+--                            constexpr static auto <state> = sml::state<class <state>>
+-- So this returns a  String
+-------------------------------------------------------------------------------
+
+interpolateStates: String -> String
+interpolateStates state =
+    (interpolate constexprFmt [state]) ++ "\n"
+
+
+makeConstexprClass: List (List String) -> String
+makeConstexprClass lstLstStr =
+    let
+        uniqStateLst = uniqueFirstTwoFields lstLstStr
+    in
+        List.foldl (\rowStr prev -> if not (String.isEmpty rowStr) then
+                                        prev ++ (interpolateStates  rowStr)
+                                    else
+                                        prev
+
+                   ) "" uniqStateLst
+
+-------------------------------------------------------------------------------
+--                        Need to create a unique list                       --
+--   Each class can only be there once..
+-------------------------------------------------------------------------------
+uniqueFirstTwoFields : List (List String) -> List String
+uniqueFirstTwoFields listOfLists =
+    listOfLists
+        |> List.concatMap firstTwo
+        |> ListExtra.unique
+
+firstTwo : List String -> List String
+firstTwo list =
+    case list of
+        [stateStart,stateEnd,_,_,_] ->
+            [ stateStart, stateEnd ]
+        _ -> []

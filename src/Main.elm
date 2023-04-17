@@ -89,8 +89,9 @@ makeSystemNameInput model =
 makeCodeOutput: Model -> Html msg
 makeCodeOutput model =
     let
-        cppStr =makeFsmRowTable model.tableData
-               |> make_cpp_data model.systemName
+        smlClass = Cpp.makeConstexprClass model.tableData
+        cppStr = makeFsmRowTable model.tableData
+               |> make_cpp_data  smlClass model.systemName
                |> text
 
     in
