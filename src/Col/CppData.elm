@@ -1,29 +1,36 @@
-module Col.CppData exposing (make_cpp_data,make_fsm_row,makeFsmRowTable)
+module Col.CppData exposing (make_cpp_data,make_fsm_row,makeFsmRowTable,defaultName)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import Debug
 
-
+defaultName = "StateMachine"
 
 
 cpp_data: String
 cpp_data = """
-struct StateMachine
+struct {0}
 {
   auto operator()() const {
     using namespace sml;
     // clang-format off
     return make_transition_table(
         //-[CurrentState]---|------[Event]-----|---[Guard]----|--[Action]---|--Next State-----
-        {0}
+        {1}
     );
     // clang-format on
   }
 };
 """
 
-make_cpp_data: String -> String
-make_cpp_data str = interpolate cpp_data [str]
+make_cpp_data: String -> String -> String
+make_cpp_data modelName str =
+    let
+        fixedModelName = if String.isEmpty modelName then
+                             defaultName
+                         else
+                             modelName
+    in
+    interpolate cpp_data [fixedModelName ,str]
 
 isNotEmpty : String -> Bool
 isNotEmpty str =

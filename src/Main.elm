@@ -11,7 +11,8 @@ import Html.Events exposing (onInput)
 
 
 type alias Model =
-    { tableData : List (List String)
+    { tableData : List (List String),
+          systemName : String
     }
 
 
@@ -21,11 +22,14 @@ type alias Model =
 
 init : Model
 init =
-    { tableData = List.repeat 5 (List.repeat 5 "") }
+    { tableData = List.repeat 5 (List.repeat 5 ""),
+          systemName = Cpp.defaultName
+    }
 
 
 type Msg
     = UpdateField Int Int String
+      | UpdateMachineName String
 
 
 update : Msg -> Model -> Model
@@ -57,16 +61,27 @@ update msg model =
                         table
             in
             { model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData }
+        UpdateMachineName str -> { model | systemName = str}
 
 
 view : Model -> Html Msg
 view model =
     div []
-        [ table [] (makeModelTable model)
-              ,makeCodeOutput model
+        [ makeSystemNameInput model
+        ,table [] (makeModelTable model)
+        ,makeCodeOutput model
 
         ]
 
+
+makeSystemNameInput: Model -> Html Msg
+makeSystemNameInput model =
+    div [ ] [
+         text "Statemachine Name: "
+        ,input [ type_ "text"
+               , placeholder "StateMachine Name"
+               , Html.Events.onInput UpdateMachineName] []
+        ]
 
 -------------------------------------------------------------------------------
 --                              Make code output                             --
@@ -75,7 +90,7 @@ makeCodeOutput: Model -> Html msg
 makeCodeOutput model =
     let
         cppStr =makeFsmRowTable model.tableData
-               |> make_cpp_data
+               |> make_cpp_data model.systemName
                |> text
 
     in
