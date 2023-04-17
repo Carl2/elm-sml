@@ -1,4 +1,4 @@
-module Col.CppData exposing (make_cpp_data,make_fsm_row,makeFsmRowTable,defaultName,makeConstexprClass)
+module Col.CppData exposing (make_cpp_data,make_fsm_row,makeFsmRowTable,defaultName,makeConstexprClass,makeEventHeader)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import List.Extra as ListExtra
@@ -6,10 +6,15 @@ import Debug
 
 defaultName = "StateMachine"
 constexprFmt = "constexpr static auto {0} = sml:::state<class {0}>;"
-
+eventFmt ="""
+struct {0} {};
+"""
 
 cpp_data: String
 cpp_data = """
+// Create a header file with {0}.hpp for example
+// This was created with help of elm-sml (by Carl Olsen)
+
 struct {0}
 {
 {1}
@@ -126,7 +131,7 @@ interpolateStates state =
 makeConstexprClass: List (List String) -> String
 makeConstexprClass lstLstStr =
     let
-        uniqStateLst = uniqueFirstTwoFields lstLstStr
+        uniqStateLst = uniqueFields lstLstStr firstTwo
     in
         List.foldl (\rowStr prev -> if not (String.isEmpty rowStr) then
                                         prev ++ (interpolateStates  rowStr)
@@ -135,15 +140,6 @@ makeConstexprClass lstLstStr =
 
                    ) "" uniqStateLst
 
--------------------------------------------------------------------------------
---                        Need to create a unique list                       --
---   Each class can only be there once..
--------------------------------------------------------------------------------
-uniqueFirstTwoFields : List (List String) -> List String
-uniqueFirstTwoFields listOfLists =
-    listOfLists
-        |> List.concatMap firstTwo
-        |> ListExtra.unique
 
 firstTwo : List String -> List String
 firstTwo list =
@@ -151,3 +147,42 @@ firstTwo list =
         [stateStart,stateEnd,_,_,_] ->
             [ stateStart, stateEnd ]
         _ -> []
+
+-------------------------------------------------------------------------------
+--                        Need to create a unique list                       --
+--   Each class can only be there once..
+-------------------------------------------------------------------------------
+uniqueFields : List (List String) -> (List String -> List String) -> List String
+uniqueFields listOfLists fn =
+    listOfLists
+        |> List.concatMap fn
+        |> ListExtra.unique
+
+
+
+getEventFromLst lst = case lst of
+                           [_,_,ev,_,_] -> ev -- Check if its empty
+                           _ -> ""
+
+
+eventLst: List (List String) -> List String
+eventLst  listOflist = listOflist
+                     |> List.foldl (\row prevEvent ->  (getEventFromLst row) :: prevEvent ) []
+                     |> ListExtra.unique
+
+interpolateEvent: String -> String
+interpolateEvent event =
+    if not (String.isEmpty event) then
+        interpolate eventFmt [event]
+    else
+        ""
+
+-------------------------------------------------------------------------------
+--               Make Event header
+--     All the unique events should become a struct {event}
+-------------------------------------------------------------------------------
+makeEventHeader: List (List String) -> String
+makeEventHeader lstLstStr =
+    lstLstStr
+        |> eventLst
+        |> List.foldl (\ev str ->  (interpolateEvent ev) ++ str ) ""

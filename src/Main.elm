@@ -70,7 +70,7 @@ view model =
         [ makeSystemNameInput model
         ,table [] (makeModelTable model)
         ,makeCodeOutput model
-
+        ,makeEventOutput model
         ]
 
 
@@ -97,6 +97,11 @@ makeCodeOutput model =
     in
         pre [id "language-cpp"] [code [class "language-cpp"] [cppStr]] --[cppStr]
 
+makeEventOutput: Model -> Html msg
+makeEventOutput model =
+    div [] [pre [] [code []
+                        [text "// This could be placed in a header file"
+                         ,text (Cpp.makeEventHeader model.tableData) ] ]]
 
 -------------------------------------------------------------------------------
 --                                    Old                                    --
