@@ -112,56 +112,42 @@ makeFsmRowTable lstLstStr =
 --                             Make sml constexpr                            --
 --  The idea is to make constexpr sml of the states.
 --  For each row.
---    Get the start and end state (index 0,1)
+--    Get the start and end state (index 0,1) and if they are unique
 --    Transform that into a string of type:
 --                            constexpr static auto <state> = sml::state<class <state>>
--- So this returns a Maybe String
+-- So this returns a  String
 -------------------------------------------------------------------------------
-constructConstexprStates: Int -> String -> String -> String
-constructConstexprStates idx start end =
+
+interpolateStates: String -> String
+interpolateStates state =
+    (interpolate constexprFmt [state]) ++ "\n"
+
+
+makeConstexprClass: List (List String) -> String
+makeConstexprClass lstLstStr =
     let
-        constructStr str = if not (String.isEmpty str) then
-                               (interpolate constexprFmt [str]) ++ "\n"
-                           else
-                               ""
+        uniqStateLst = uniqueFirstTwoFields lstLstStr
     in
-        (constructStr start ++ constructStr end)
+        List.foldl (\rowStr prev -> if not (String.isEmpty rowStr) then
+                                        prev ++ (interpolateStates  rowStr)
+                                    else
+                                        prev
 
-forEachRowClass: Int -> List String -> Maybe String
-forEachRowClass indx row =
-    case row of
-        [start,end,_,_,_]  ->
-            Just (constructConstexprStates indx start end)
-        _ -> Nothing
-
+                   ) "" uniqStateLst
 
 -------------------------------------------------------------------------------
 --                        Need to create a unique list                       --
 --   Each class can only be there once..
 -------------------------------------------------------------------------------
-makeConstexprClass: List (List String) -> String
-makeConstexprClass lstLstStr =
-    let
-
-        lstMaybeStr = List.indexedMap forEachRowClass lstLstStr
-    in
-        List.foldl (\rowStr prev -> case rowStr of
-                                        Just str -> (prev ++ str)
-                                        Nothing -> prev
-                   ) "" lstMaybeStr
-
-
 uniqueFirstTwoFields : List (List String) -> List String
 uniqueFirstTwoFields listOfLists =
     listOfLists
         |> List.concatMap firstTwo
         |> ListExtra.unique
 
--- firstTwo : List String -> List String
--- firstTwo list =
---     case list of
---         [stateStart,stateEnd]->
---            [ a, b ]
-
---         _ ->
---             []
+firstTwo : List String -> List String
+firstTwo list =
+    case list of
+        [stateStart,stateEnd,_,_,_] ->
+            [ stateStart, stateEnd ]
+        _ -> []
