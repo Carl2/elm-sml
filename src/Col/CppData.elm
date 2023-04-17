@@ -12,7 +12,7 @@ cpp_data: String
 cpp_data = """
 struct {0}
 {
- {1}
+{1}
   auto operator()() const {
     using namespace sml;
     // clang-format off
@@ -120,7 +120,7 @@ makeFsmRowTable lstLstStr =
 
 interpolateStates: String -> String
 interpolateStates state =
-    (interpolate constexprFmt [state]) ++ "\n"
+    "    " ++ (interpolate constexprFmt [state]) ++ "\n"
 
 
 makeConstexprClass: List (List String) -> String
