@@ -26,3 +26,7 @@ be defined in from a table and the table will be transformed to [[https://github
 
 Checkout out
 https://highlightjs.org/usage/
+
+https://stackoverflow.com/questions/38149635/syntax-highlighting-with-elm
+
+https://discourse.elm-lang.org/t/how-to-call-highlight-js-after-dom-change-in-elm/7625/2

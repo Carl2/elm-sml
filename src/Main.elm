@@ -99,7 +99,7 @@ makeCodeOutput model =
 
 makeEventOutput: Model -> Html msg
 makeEventOutput model =
-    div [] [pre [] [code []
+    div [] [pre [] [code [class "language-cpp"]
                         [text "// This could be placed in a header file"
                          ,text (Cpp.makeEventHeader model.tableData) ] ]]
 
