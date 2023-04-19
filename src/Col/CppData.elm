@@ -13,8 +13,12 @@ struct {0} {};
 
 cpp_data: String
 cpp_data = """
+#include <boost/sml.hpp>
+
 // Create a header file with {0}.hpp for example
 // This was created with help of elm-sml (by Carl Olsen)
+
+namespace sml = boost::sml;
 
 struct {0}
 {
@@ -134,15 +138,13 @@ makeConstexprClass lstLstStr =
     let
         uniqStateLst = uniqueFields lstLstStr firstTwo
 
-        -- add if not empty or EndState
-        checkStr row prev=
-            if not (String.isEmpty row)  then
-                if row /= endStateStr then
-                    prev ++ (interpolateStates  row)
-                else
-                    prev
-            else
-                prev
+        checkStr row prev = case row of
+                                "" -> prev
+                                "X" -> prev
+                                _ -> if String.startsWith "*" row then
+                                         prev ++ (interpolateStates (String.dropLeft 1 row))
+                                     else
+                                         prev ++ (interpolateStates row)
     in
         List.foldl (\rowStr prev -> checkStr rowStr prev) "" uniqStateLst
 
