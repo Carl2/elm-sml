@@ -12,6 +12,7 @@
 # #+HTML_HEAD: <script src="extra/prism.js"></script>
 
 
+For more information of how *SML* works,checkout [[https://github.com/boost-ext/sml][link sml]].
 
 #+begin_export html
 

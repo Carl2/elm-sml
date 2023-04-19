@@ -4,6 +4,7 @@ import Array exposing (fromList,get)
 import List.Extra as ListExtra
 import Debug
 
+endStateStr = "X"
 defaultName = "StateMachine"
 constexprFmt = "constexpr static auto {0} = sml::state<class {0}>;"
 eventFmt ="""
@@ -12,8 +13,12 @@ struct {0} {};
 
 cpp_data: String
 cpp_data = """
+#include <boost/sml.hpp>
+
 // Create a header file with {0}.hpp for example
 // This was created with help of elm-sml (by Carl Olsen)
+
+namespace sml = boost::sml;
 
 struct {0}
 {
@@ -132,14 +137,16 @@ makeConstexprClass: List (List String) -> String
 makeConstexprClass lstLstStr =
     let
         uniqStateLst = uniqueFields lstLstStr firstTwo
+
+        checkStr row prev = case row of
+                                "" -> prev
+                                "X" -> prev
+                                _ -> if String.startsWith "*" row then
+                                         prev ++ (interpolateStates (String.dropLeft 1 row))
+                                     else
+                                         prev ++ (interpolateStates row)
     in
-        List.foldl (\rowStr prev -> if not (String.isEmpty rowStr) then
-                                        prev ++ (interpolateStates  rowStr)
-                                    else
-                                        prev
-
-                   ) "" uniqStateLst
-
+        List.foldl (\rowStr prev -> checkStr rowStr prev) "" uniqStateLst
 
 firstTwo : List String -> List String
 firstTwo list =
