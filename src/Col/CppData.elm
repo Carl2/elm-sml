@@ -5,7 +5,7 @@ import List.Extra as ListExtra
 import Debug
 
 defaultName = "StateMachine"
-constexprFmt = "constexpr static auto {0} = sml:::state<class {0}>;"
+constexprFmt = "constexpr static auto {0} = sml::state<class {0}>;"
 eventFmt ="""
 struct {0} {};
 """
