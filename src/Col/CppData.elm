@@ -4,6 +4,7 @@ import Array exposing (fromList,get)
 import List.Extra as ListExtra
 import Debug
 
+endStateStr = "X"
 defaultName = "StateMachine"
 constexprFmt = "constexpr static auto {0} = sml::state<class {0}>;"
 eventFmt ="""
@@ -132,14 +133,18 @@ makeConstexprClass: List (List String) -> String
 makeConstexprClass lstLstStr =
     let
         uniqStateLst = uniqueFields lstLstStr firstTwo
+
+        -- add if not empty or EndState
+        checkStr row prev=
+            if not (String.isEmpty row)  then
+                if row /= endStateStr then
+                    prev ++ (interpolateStates  row)
+                else
+                    prev
+            else
+                prev
     in
-        List.foldl (\rowStr prev -> if not (String.isEmpty rowStr) then
-                                        prev ++ (interpolateStates  rowStr)
-                                    else
-                                        prev
-
-                   ) "" uniqStateLst
-
+        List.foldl (\rowStr prev -> checkStr rowStr prev) "" uniqStateLst
 
 firstTwo : List String -> List String
 firstTwo list =
