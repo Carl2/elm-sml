@@ -21,6 +21,13 @@ cppDataTest =
                  mdl = [["s0","s1","e1","g1","a1"]]
              in
                  Cpp.makeFsmRowTable mdl |> Expect.equal "*s0   + event<e1>   [g1]   / (a1)   = s1\n        "
+        ,test "Test without with only states" <|
+            \_ ->
+                let
+                    mdl = [["s0","s1","","",""]]
+                in
+                    Cpp.makeFsmRowTable mdl
+                        |> Expect.equal "*s0            = s1\n        "
         ,test "Non start state" <|
             \_ ->
                 let
