@@ -5,9 +5,10 @@ module Main exposing (main, update, Model, Msg(..))
 import Browser
 import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row,makeFsmRowTable)
 import Col.Table as Tbl exposing (..)
-import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,span)
+import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,span,img)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput,onClick)
+import Col.PlantUml as PU
 
 
 type alias Model =
@@ -79,6 +80,7 @@ view model =
         ,button [onClick DelRow] [ text "-"]
         ,makeCodeOutput model
         ,makeEventOutput model
+        ,img [src "http://www.plantuml.com/plantuml/png/SoWkIImgAStDuNBAJrBGjLDmpCbCJbMmKiX8pSd9vt98pKi1IW80", width 300, height 300] []
 
         ]
 

@@ -5,6 +5,7 @@ import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
 import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row,makeFsmRowTable)
 import Main exposing (update, Model, Msg(..))
+import Col.PlantUml as PU
 
 
 
@@ -93,5 +94,21 @@ updateTest =
                                   }
                 in
                     update DelRow mdl |> Expect.equal expectedMdl
+
+        ]
+
+
+plantUmlTest: Test
+plantUmlTest =
+    describe "PlantUml tests" <|
+        [
+         test "Convert to Hex" <|
+             \_ ->
+             let
+                 data = "calle was here"
+                 expectedData = "63616c6c65207761732068657265"
+             in
+                 PU.stringToHex data |> Expect.equal (Ok expectedData)
+
 
         ]
