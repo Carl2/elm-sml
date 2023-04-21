@@ -10,7 +10,6 @@ import Html.Events exposing (onInput)
 
 
 
-
 type alias ViewInputItem msg =
     { input_type : String
     , placeholder : String

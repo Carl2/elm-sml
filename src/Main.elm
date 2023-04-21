@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (main, update, Model, Msg(..))
 
 --import Col.TableDef as Def exposing ()
 
@@ -7,7 +7,7 @@ import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row,makeFsmRowTable)
 import Col.Table as Tbl exposing (..)
 import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,span)
 import Html.Attributes exposing (..)
-import Html.Events exposing (onInput)
+import Html.Events exposing (onInput,onClick)
 
 
 type alias Model =
@@ -22,14 +22,16 @@ type alias Model =
 
 init : Model
 init =
-    { tableData = List.repeat 5 (List.repeat 5 ""),
-          systemName = Cpp.defaultName
+    { tableData = List.repeat 5 (List.repeat 5 "")
+    ,systemName = Cpp.defaultName
     }
 
 
 type Msg
     = UpdateField Int Int String
       | UpdateMachineName String
+      | AddRow
+      | DelRow
 
 
 update : Msg -> Model -> Model
@@ -62,6 +64,10 @@ update msg model =
             in
             { model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData }
         UpdateMachineName str -> { model | systemName = str}
+        AddRow ->
+            {model | tableData = List.append  model.tableData  [(List.repeat 5 "")]}
+        DelRow ->
+            {model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }
 
 
 view : Model -> Html Msg
@@ -69,8 +75,11 @@ view model =
     div []
         [ makeSystemNameInput model
         ,table [] (makeModelTable model)
+        ,button [onClick AddRow] [ text "+"]
+        ,button [onClick DelRow] [ text "-"]
         ,makeCodeOutput model
         ,makeEventOutput model
+
         ]
 
 

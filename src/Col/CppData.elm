@@ -108,9 +108,9 @@ makeFsmRow lineNr lstStr =
 makeFsmRowTable: List (List String ) -> String
 makeFsmRowTable lstLstStr =
     let
-        lstMaybeStr = List.indexedMap makeFsmRow lstLstStr --Will create a List (Maybe str)
-
-                                                    -- Now we concatenate the strings (not)
+        --Will create a List (Maybe str)
+        lstMaybeStr = List.indexedMap makeFsmRow lstLstStr
+        -- Now we concatenate the strings (not)
         concatenate_str maybeStr prev = case maybeStr of
                                             Just row -> Debug.log ("new row"++row) (row ++ "\n        " ++ prev)
                                             Nothing -> prev
