@@ -65,7 +65,7 @@ update msg model =
             { model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData }
         UpdateMachineName str -> { model | systemName = str}
         AddRow ->
-            {model | tableData = (List.repeat 5 "") :: model.tableData  }
+            {model | tableData = List.append  model.tableData  [(List.repeat 5 "")]}
         DelRow ->
             {model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }
 
