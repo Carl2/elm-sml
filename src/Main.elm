@@ -1,4 +1,4 @@
-module Main exposing (main)
+module Main exposing (main, update, Model, Msg(..))
 
 --import Col.TableDef as Def exposing ()
 
