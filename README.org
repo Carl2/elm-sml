@@ -26,3 +26,5 @@ be defined in from a table and the table will be transformed to [[https://github
 
 Checkout out
 https://highlightjs.org/usage/
+
+ - [[https://github.com/markushedvall/plantuml-encoder][Plantuml encoder]]
