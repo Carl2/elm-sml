@@ -1,4 +1,4 @@
-module Main exposing (main, update, Model, Msg(..))
+port module Main exposing (main, update, Model, Msg(..))
 
 --import Col.TableDef as Def exposing ()
 
@@ -16,16 +16,15 @@ type alias Model =
           systemName : String
     }
 
-
+-- Port to javascript
+port sendDiagram : String -> Cmd msg
 
 -- 5 rows with 5 fields. List (List String)
-
-
-init : Model
-init =
-    { tableData = List.repeat 5 (List.repeat 5 "")
+init : () -> (Model, Cmd Msg)
+init _ =
+    ({ tableData = List.repeat 5 (List.repeat 5 "")
     ,systemName = Cpp.defaultName
-    }
+    },Cmd.none)
 
 
 type Msg
@@ -33,9 +32,10 @@ type Msg
       | UpdateMachineName String
       | AddRow
       | DelRow
+      | MakeUmlDiagram
 
 
-update : Msg -> Model -> Model
+update : Msg -> Model -> (Model, Cmd msg)
 update msg model =
     case msg of
         UpdateField rowIndex fieldIndex newValue ->
@@ -63,12 +63,14 @@ update msg model =
                         )
                         table
             in
-            { model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData }
-        UpdateMachineName str -> { model | systemName = str}
+                ({ model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData },Cmd.none)
+        UpdateMachineName str -> ({ model | systemName = str}, Cmd.none)
         AddRow ->
-            {model | tableData = List.append  model.tableData  [(List.repeat 5 "")]}
+            ({model | tableData = List.append  model.tableData  [(List.repeat 5 "")]},Cmd.none)
         DelRow ->
-            {model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }
+            ({model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }, Cmd.none)
+        MakeUmlDiagram ->
+            (model, sendDiagram "Not yet!")
 
 
 view : Model -> Html Msg
@@ -80,6 +82,7 @@ view model =
         ,button [onClick DelRow] [ text "-"]
         ,makeCodeOutput model
         ,makeEventOutput model
+        ,button [onClick MakeUmlDiagram] [text "Make uml diagram"]
         ,img [src "http://www.plantuml.com/plantuml/png/SoWkIImgAStDuNBAJrBGjLDmpCbCJbMmKiX8pSd9vt98pKi1IW80", width 300, height 300] []
 
         ]
@@ -118,10 +121,17 @@ makeEventOutput model =
 --                                    Old                                    --
 -------------------------------------------------------------------------------
 -- Main
-
+-- subscriptions : Model -> Sub Msg
+-- subscriptions _ =
+--     receiveData ReceivedDataFromJS
 
 main =
-    Browser.sandbox { init = init, update = update, view = view }
+    Browser.element {
+            init = init
+                ,update = update
+                ,view = view
+                ,subscriptions = \_ -> Sub.none
+        }
 
 
 -------------------------------------------------------------------------------

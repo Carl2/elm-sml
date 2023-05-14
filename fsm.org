@@ -3,9 +3,6 @@
 #+title: FSM
 #+filetags: elm programming language web
 
-#+HTML_HEAD:  <link rel="stylesheet" href="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/styles/default.min.css">
-#+HTML_HEAD: <script src="//cdnjs.cloudflare.com/ajax/libs/highlight.js/11.7.0/highlight.min.js"></script>
-#+HTML_HEAD: <script>hljs.highlightAll();</script>
 # #+HTML_HEAD: <link href="extra/prism.css" rel="stylesheet" />
 
 # #+HTML_HEAD: <link href="extra/style.css" rel="stylesheet" />
@@ -17,12 +14,23 @@ For more information of how *SML* works,checkout [[https://github.com/boost-ext/
 #+begin_export html
 
   <div id="elm-app"></div>
+  <div id="encoded-data"></div>
 
-
+  <script src="plantuml-encoder/dist/plantuml-encoder.js"></script>
   <script src="elm.js"></script>
     <script>
       var app = Elm.Main.init({
         node: document.getElementById("elm-app")
+      });
+
+
+      app.ports.sendDiagram.subscribe(function(data) {
+      console.log("Data from Elm: ", data);
+
+      var plantumlEncoder = window.plantumlEncoder;
+      var encoded_data = plantumlEncoder.encode(data);
+      document.getElementById('encoded-data').innerText = 'encoded: ' + encoded_data;
+
       });
     </script>
 
