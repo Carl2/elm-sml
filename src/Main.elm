@@ -70,7 +70,8 @@ update msg model =
         DelRow ->
             ({model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }, Cmd.none)
         MakeUmlDiagram ->
-            (model, sendDiagram "Not yet!")
+            (model, sendDiagram <| createPlantUmlDiagram model)
+
 
 
 view : Model -> Html Msg
@@ -82,8 +83,7 @@ view model =
         ,button [onClick DelRow] [ text "-"]
         ,makeCodeOutput model
         ,makeEventOutput model
-        ,button [onClick MakeUmlDiagram] [text "Make uml diagram"]
-        ,img [src "http://www.plantuml.com/plantuml/png/SoWkIImgAStDuNBAJrBGjLDmpCbCJbMmKiX8pSd9vt98pKi1IW80", width 300, height 300] []
+        ,button [onClick MakeUmlDiagram] [text "Make Uml Diagram" ]
 
         ]
 
@@ -96,6 +96,15 @@ makeSystemNameInput model =
                , placeholder "StateMachine Name"
                , Html.Events.onInput UpdateMachineName] []
         ]
+
+-------------------------------------------------------------------------------
+--                     MakeUml string diagram from model                     --
+-------------------------------------------------------------------------------
+createPlantUmlDiagram: Model -> String
+createPlantUmlDiagram mdl =
+    mdl.tableData
+        |> PU.convertTable mdl.systemName
+        |> PU.plantUmlDataToString
 
 -------------------------------------------------------------------------------
 --                              Make code output                             --

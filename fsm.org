@@ -13,25 +13,29 @@ For more information of how *SML* works,checkout [[https://github.com/boost-ext/
 
 #+begin_export html
 
-  <div id="elm-app"></div>
-  <div id="encoded-data"></div>
+<div id="elm-app"></div>
+<div id="encoded-data"></div>
+<img id="plantuml-img"></div>
 
-  <script src="plantuml-encoder/dist/plantuml-encoder.js"></script>
-  <script src="elm.js"></script>
-    <script>
-      var app = Elm.Main.init({
-        node: document.getElementById("elm-app")
-      });
+<script src="plantuml-encoder/dist/plantuml-encoder.js"></script>
+<script src="elm.js"></script>
+  <script>
+    var app = Elm.Main.init({
+      node: document.getElementById("elm-app")
+    });
 
 
-      app.ports.sendDiagram.subscribe(function(data) {
-      console.log("Data from Elm: ", data);
+    app.ports.sendDiagram.subscribe(function(data) {
+    console.log("Data from Elm: ", data);
 
-      var plantumlEncoder = window.plantumlEncoder;
-      var encoded_data = plantumlEncoder.encode(data);
-      document.getElementById('encoded-data').innerText = 'encoded: ' + encoded_data;
+    var plantumlEncoder = window.plantumlEncoder;
+    var encoded_data = plantumlEncoder.encode(data);
+    document.getElementById('encoded-data').innerText = 'encoded: ' + encoded_data;
 
-      });
-    </script>
+    var baseUrl = 'http://www.plantuml.com/plantuml/img/';
+    var url = baseUrl + encoded_data;
+    document.getElementById('plantuml-img').src = url
+    });
+  </script>
 
 #+end_export
