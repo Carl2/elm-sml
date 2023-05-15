@@ -64,10 +64,11 @@ transitionRowToString row =
                         ""
                     else
                         " / " ++ row.action
-        endState = if String.isEmpty row.endState then
-                       row.startState
-                   else
-                       row.endState
+        endState = case row.endState of
+                       "" -> row.startState
+                       "X" -> "[*]"
+                       _   -> row.endState
+
     in
         if String.isEmpty row.startState then
            ""
