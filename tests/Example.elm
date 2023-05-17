@@ -1,4 +1,4 @@
-module Example exposing (cppDataTest,suite)
+module Example exposing (cppDataTest,suite,plantUmlTest)
 
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
@@ -7,7 +7,54 @@ import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row,makeFsmRowTable)
 import Main exposing (update, Model, Msg(..))
 import Col.PlantUml as PU
 
-
+sampleData : PU.PlantUmlData
+sampleData =
+    { name = "SampleData"
+    , transitionTable =
+          [ { startState = "A"
+            , endState = "B"
+            , event = "event1"
+            , guard = "guard1"
+            , action = "action1"
+            , lineNr = 1
+            }
+          , { startState = "A"
+            , endState = ""
+            , event = "eventI"
+            , guard = "guardI"
+            , action = "actionI"
+            , lineNr = 0
+            }
+          , { startState = "X"
+            , endState = "C"
+            , event = "event2"
+            , guard = "guard2"
+            , action = "action2"
+            , lineNr = 2
+            }
+          , { startState = "B"
+            , endState = "A"
+            , event = "event3"
+            , guard = "guard3"
+            , action = "action3"
+            , lineNr = 3
+            }
+          , { startState = "B"
+            , endState = "D"
+            , event = "event4"
+            , guard = "guard4"
+            , action = "action4"
+            , lineNr = 4
+            }
+          ,{ startState = "D"
+           , endState = "X"
+           , event = "event5"
+           , guard = "guard5"
+           , action = "action5"
+           , lineNr = 5
+           }
+          ]
+    }
 
 suite : Test
 suite =
@@ -66,8 +113,9 @@ updateTest =
                                                 ]
                                   , systemName = Cpp.defaultName
                                   }
+                    (updated,_) = update AddRow mdl
                 in
-                    update AddRow mdl |> Expect.equal expectedMdl
+                    updated |> Expect.equal expectedMdl
 
         ,test "DelRow" <|
             \_ ->
@@ -80,8 +128,9 @@ updateTest =
                     expectedMdl = { tableData = [ ["s0","s1","e1","g1","a1"]]
                                   , systemName = Cpp.defaultName
                                   }
+                    (updated,_) = update DelRow mdl
                 in
-                    update DelRow mdl |> Expect.equal expectedMdl
+                    updated |> Expect.equal expectedMdl
 
         ,test "DelRow Empty" <|
             \_ ->
@@ -92,23 +141,50 @@ updateTest =
                     expectedMdl = { tableData = []
                                   , systemName = Cpp.defaultName
                                   }
+                    (updated,_) = update DelRow mdl
                 in
-                    update DelRow mdl |> Expect.equal expectedMdl
+                    updated |> Expect.equal expectedMdl
 
         ]
 
 
 plantUmlTest: Test
 plantUmlTest =
-    describe "PlantUml tests" <|
-        [
-         test "Convert to Hex" <|
+    describe "PlantUml tests"
+        [test "Test state uniqueness" <|
              \_ ->
-             let
-                 data = "calle was here"
-                 expectedData = "63616c6c65207761732068657265"
-             in
-                 PU.stringToHex data |> Expect.equal (Ok expectedData)
-
-
+                 PU.uniqueStates sampleData.transitionTable |> Expect.equal ["A","B","C","D"]
+        ,test "Test getting transitions" <|
+             \_ ->
+                 PU.getTransitions "A" sampleData.transitionTable |> Expect.equal
+                    [{ action = Just "action1",
+                           endState = Just "B",
+                           event = Just "event1",
+                           guard = Just "guard1",
+                           state = "A" }
+                    ,{ action = Just "actionI",
+                           endState = Nothing,
+                           event = Just "eventI",
+                           guard = Just "guardI",
+                           state = "A" }
+                    ,{ action = Just "action2",
+                           endState = Just "C",
+                           event = Just "event2",
+                           guard = Just "guard2",
+                           state = "A" }
+                    ,{ action = Just "action3",
+                           endState = Just "A",
+                           event = Just "event3",
+                           guard = Just "guard3",
+                           state = "A" }
+                    ,{ action = Just "action4",
+                           endState = Just "D",
+                           event = Just "event4",
+                           guard = Just "guard4",
+                           state = "A" }
+                    ,{ action = Just "action5",
+                           endState = Just "X",
+                           event = Just "event5",
+                           guard = Just "guard5",
+                           state = "A" }]
         ]

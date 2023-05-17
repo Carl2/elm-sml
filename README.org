@@ -28,3 +28,65 @@ Checkout out
 https://highlightjs.org/usage/
 
  - [[https://github.com/markushedvall/plantuml-encoder][Plantuml encoder]]
+
+
+
+* Finding all unique states
+
+The reason is to be able to create
+#+begin_src
+  state StateA {}
+#+end_src
+
+** Finding all internal transition
+
+For each of the unique state I need to find transitions that has a
+start state according the the Unique state in and no end state.
+
+What i really want is:
+#+begin_src elm
+  type alias Transition =
+    { state : String
+    ,endState : Maybe String
+    ,event: Maybe String
+    ,guard: Maybe String
+    ,action Maybe String
+    }
+#+end_src
+  1. For each of the unique states if
+     the state doesn't have a end state (its internal) then we should create a Transition
+#+begin_src
+{state = A
+,endState = Nothing
+,event = "ev1"
+,guard = "g1"
+,action = "a1"
+
+}
+#+end_src
+  2. For each of the unique states if
+     the state have a an end state
+#+begin_src
+{state = "A"
+,endState = "B"
+,event = "ev1"
+,guard = "g1"
+,action = "a1"
+
+}
+#+end_src
+
+If any of the *event*, *guard* or *action* is missing they should be /Nothing/
+
+
+** State as List of transitions
+
+   A -> [ A->B, A->C , A->A , A]
+   B -> [B -> C, C -> D]
+   C -> [C->X]
+   D -> [D->A]
+
+
+   then can we print this out?
+   YES! And it seems as if we can do
+   Internals as A: Ev [guard] / do
