@@ -54,7 +54,7 @@ sampleData =
            , lineNr = 5
            }
           ]
-    }
+    }ww
 
 suite : Test
 suite =
@@ -187,4 +187,14 @@ plantUmlTest =
                            event = Just "event5",
                            guard = Just "guard5",
                            state = "A" }]
+        ,test "Testing Transition" <|
+            \_ ->
+                let
+                    system = PU.createSystem sampleData
+
+
+                in
+
+
+
         ]

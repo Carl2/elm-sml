@@ -1,9 +1,9 @@
-module Col.PlantUml exposing (convertTable,plantUmlDataToString,PlantUmlData,uniqueStates,getTransitions)
+module Col.PlantUml exposing (convertTable,plantUmlDataToString,PlantUmlData,uniqueStates,makeTransitionStr)
 --import String.Interpolate exposing(interpolate)
 import Set
 -- import String
 plantUmlUrl = "http://www.plantuml.com/plantuml/uml/~h"
-test="http://www.plantuml.com/plantuml/uml/~h407374617274756d6c0a416c6963652d3e426f62203a204920616d207573696e67206865780a40656e64756d6c"
+--test="http://www.plantuml.com/plantuml/uml/~h407374617274756d6c0a416c6963652d3e426f62203a204920616d207573696e67206865780a40656e64756d6c"
 
 type alias TransitionRow =
     { startState : String
@@ -30,6 +30,17 @@ type alias Transition =
 type alias State =
     { name : String
       ,transitions: List Transition}
+
+type alias System =
+    { name : String
+    ,states : List State
+    }
+
+isEmpty: String -> Maybe String
+isEmpty str =
+    case str of
+        "" -> Nothing
+        val -> Just val
 
 -------------------------------------------------------------------------------
 --                       Converts into plantuml struct                        --
@@ -96,6 +107,7 @@ transitionRowToString row =
 -- unique states should be placed in a list.
 -------------------------------------------------------------------------------
 
+
 uniqueStates : List TransitionRow -> List String
 uniqueStates transitionTable =
     let
@@ -108,43 +120,112 @@ uniqueStates transitionTable =
 
 
 
-isEmpty: String -> Maybe String
-isEmpty str =
-    case str of
-        "" -> Nothing
-        val -> Just val
+-------------------------------------------------------------------------------
+--                    Converts transitionRow to Transition                   --
+--
+-------------------------------------------------------------------------------
+createTransitions: String -> List TransitionRow -> List Transition
+createTransitions stateName rows =
+    rows
+        |> List.filter (\row -> row.startState == stateName )
+        |> convertTransitionRowToTransition
 
-createTransitions: String -> TransitionRow -> Transition
-createTransitions state rows =
-    let
-        -- For each of the rows find the transition with
-        -- the startName == state
-        allStateRows = List.filter (\row -> row.startState == state ) rows
-
-    in
-
-convertTransitionRowToState: String -> List TransitionRow -> State
-convertTransitionRowToState stateName transRows =
+convertTransitionRowToTransition: List TransitionRow -> List Transition
+convertTransitionRowToTransition transRows =
     let
        convertToTransition row = { endState = isEmpty row.endState
                                  , event = isEmpty row.event
                                  , guard = isEmpty row.guard
                                  , action = isEmpty row.action}
-       transes = List.map convertToTransition transRows
     in
-        {name = stateName
-        ,transitions =transes }
+        List.map convertToTransition transRows
 
 --List.map convertToTransition transRows
-createStateStructure: PlantUmlData -> State
-createStateStructure umlData =
+createStateStructure: List TransitionRow -> List State
+createStateStructure transitionTable =
+    uniqueStates transitionTable |>
+                                   List.map (\state -> { name = state
+                                                       , transitions =
+                                                             (createTransitions state transitionTable)
+                                                       })
+
+
+createSystem: PlantUmlData -> System
+createSystem plantumlData =
+    { name = plantumlData.name
+    , states = createStateStructure plantumlData.transitionTable
+    }
+
+-------------------------------------------------------------------------------
+--                             Generates strings                             --
+-------------------------------------------------------------------------------
+-- PlantUml header
+headerStartStr: String
+headerStartStr =
+    "@startuml\n\n"
+
+headerEndStr: String
+headerEndStr =
+    "@enduml\n"
+
+
+
+systemStartStr: String -> String
+systemStartStr name =
+    "state " ++ name ++ "{\n"
+
+systemEndStr: String
+systemEndStr = "}\n"
+
+-- makeAttrStr: Maybe String -> Maybe String -> Maybe String -> String
+-- makeAttrStr  preStr attributeStr postStr  =
+--     case mStr of
+--         Nothing -> ""
+--         Just str ->  preStr ++ str
+
+guardStra: Maybe String -> Maybe String
+guardStra maybeguard =
+    case maybeguard of
+        Nothing -> Nothing
+        Just guard -> Just (" [" ++ guard ++ "] ")
+
+actionStra: Maybe String -> Maybe String
+actionStra maybeAction =
+    case maybeAction of
+        Nothing -> Nothing
+        Just action -> Just (" /" ++ action)
+
+
+systemAttributeStr: Transition -> String
+systemAttributeStr tr =
     let
-        uniqList = uniqueStates umlData.transitionTable
-    -- for each state in the uniqueList we create a state
-       List.map (\state -> { state = state
-                           ,createTransitions state umlData.transitionTable
-                         }) uniqList
+        ev = Maybe.withDefault "" tr.event
+        guard = Maybe.withDefault "" (guardStra tr.guard)
+        action = Maybe.withDefault "" (actionStra tr.action)
     in
+    case (ev,guard,action) of
+        ("","","") -> ""
+        (_,_,_) -> ": " ++ ev ++ guard ++ action ++ "\n"
+
+
+
+makeTransitionStr: String -> Transition -> String
+makeTransitionStr name tr =
+    case tr.endState of
+        Nothing -> name ++ systemAttributeStr tr ++ "\n"
+        Just endState -> name ++ "->" ++ endState ++ systemAttributeStr tr ++ "\n"
+
+-- stateStr: State -> String
+-- stateStr state =
+--     let
+--         List.map (\transition -> makeTransitionStr state.name transition)
+--     in
+--         state.name ++
+
+
+-- generatePlantUmlString: System -> Maybe String
+-- generatePlantUmlString system =
+--         "@startuml\n\n" ++ createNameStr system.name
 
 
 
