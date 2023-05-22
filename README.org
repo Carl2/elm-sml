@@ -90,3 +90,9 @@ If any of the *event*, *guard* or *action* is missing they should be /Nothing/
    then can we print this out?
    YES! And it seems as if we can do
    Internals as A: Ev [guard] / do
+
+
+
+** TODO Fix starting state
+
+ If there is "*" in front
