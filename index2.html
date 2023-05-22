@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>My Elm App</title>
+  <script src="plantuml-encoder/dist/plantuml-encoder.js"></script>
+  <script src="Pottypott.js"></script>
+</head>
+<body>
+
+
+
+<h2>PlantUML Encoder Test</h2>
+<button id="encodeBtn">Encode</button>
+<p id="output"></p>
+<img id="outputImg" />
+<div id="elm-app"></div>
+<img id="uml-diagram"></div>
+<div id="encoded-data"></div>
+
+
+<script>
+  var app = Elm.Pottypott.init({
+      node: document.getElementById("elm-app")
+  });
+
+  app.ports.sendData.subscribe(function(data) {
+      console.log("Data from Elm: ", data);
+      var plantumlEncoder = window.plantumlEncoder;
+      var encoded_data = plantumlEncoder.encode(data);
+      document.getElementById('encoded-data').innerText = 'elm output: ' + encoded_data;
+      var baseUrl = 'http://www.plantuml.com/plantuml/img/';
+      var url = baseUrl + encoded_data;
+      document.getElementById('uml-diagram').src = url
+  });
+
+
+
+
+  document.getElementById('encodeBtn').addEventListener('click', function() {
+      var plantumlEncoder = window.plantumlEncoder;
+      var diagram = `
+@startuml
+
+[*] --> State1
+State1 --> [*]
+State1 : this is a string
+State1 : this is another string
+
+State1 -> State2
+State2 --> [*]
+
+@enduml
+`;
+      var encoded = plantumlEncoder.encode(diagram);
+
+      var baseUrl = 'http://www.plantuml.com/plantuml/img/';
+      var url = baseUrl + encoded;
+
+      document.getElementById('output').innerText = 'Encoded output: ' + encoded;
+      document.getElementById('outputImg').src = url;
+
+  });
+</script>
+
+
+
+
+
+
+
+
+</body>
+</html>
