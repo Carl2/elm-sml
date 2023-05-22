@@ -222,7 +222,12 @@ makeTransitionStr: String -> Transition -> String
 makeTransitionStr name tr =
     case tr.endState of
         Nothing -> name ++ systemAttributeStr tr ++ "\n"
-        Just endState -> name ++ "->" ++ endState ++ systemAttributeStr tr ++ "\n"
+        Just endState -> case endState of
+                             "X" ->
+                                 name ++ "->" ++ "[*]" ++ systemAttributeStr tr ++ "\n"
+                             _ ->
+                                 name ++ "->" ++ endState ++ systemAttributeStr tr ++ "\n"
+
 
 
 makeStateTranstionStr: List State -> String

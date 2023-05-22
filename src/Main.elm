@@ -104,7 +104,8 @@ createPlantUmlDiagram: Model -> String
 createPlantUmlDiagram mdl =
     mdl.tableData
         |> PU.convertTable mdl.systemName
-        |> PU.plantUmlDataToString
+        |> PU.createSystem
+        |> PU.makeSystemString
 
 -------------------------------------------------------------------------------
 --                              Make code output                             --
