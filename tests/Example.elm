@@ -68,11 +68,12 @@ B->C: eventC [guardC] / actionC
 expectedSystemStr = """@startuml
 
 state SampleData{
+[*]-->A
 A->B: event1 [guard1] / action1
 A: eventI [guardI] / actionI
 B->A: event3 [guard3] / action3
 B->D: event4 [guard4] / action4
-D->[*]: event5 [guard5] / action5
+D-->[*]: event5 [guard5] / action5
 }
 @enduml
 """

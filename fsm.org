@@ -30,7 +30,7 @@ For more information of how *SML* works,checkout [[https://github.com/boost-ext/
 
     var plantumlEncoder = window.plantumlEncoder;
     var encoded_data = plantumlEncoder.encode(data);
-    document.getElementById('encoded-data').innerText = 'encoded: ' + encoded_data;
+    <!-- document.getElementById('encoded-data').innerText = 'encoded: ' + encoded_data; -->
 
     var baseUrl = 'http://www.plantuml.com/plantuml/img/';
     var url = baseUrl + encoded_data;

@@ -224,7 +224,7 @@ makeTransitionStr name tr =
         Nothing -> name ++ systemAttributeStr tr ++ "\n"
         Just endState -> case endState of
                              "X" ->
-                                 name ++ "->" ++ "[*]" ++ systemAttributeStr tr ++ "\n"
+                                 name ++ "-->" ++ "[*]" ++ systemAttributeStr tr ++ "\n"
                              _ ->
                                  name ++ "->" ++ endState ++ systemAttributeStr tr ++ "\n"
 
@@ -241,7 +241,13 @@ makeStateTranstionStr states =
 
 makeSystemString: System -> String
 makeSystemString system =
-    headerStartStr ++ (systemStartStr system.name) ++
+    let
+        startState = "[*]-->" ++ (List.head system.states
+                   |> Maybe.withDefault {name="Empty", transitions=[]}
+                   |> .name) ++ "\n"
+
+    in
+    headerStartStr ++ (systemStartStr system.name) ++ startState ++
         (makeStateTranstionStr system.states) ++ systemEndStr ++ headerEndStr
 
 
