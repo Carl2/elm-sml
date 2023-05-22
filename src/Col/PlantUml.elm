@@ -1,4 +1,5 @@
-module Col.PlantUml exposing (convertTable,plantUmlDataToString,PlantUmlData,uniqueStates,makeTransitionStr)
+module Col.PlantUml exposing (convertTable,plantUmlDataToString,PlantUmlData,uniqueStates,makeTransitionStr,createSystem
+                             ,getStateByName,getStateByIndex,findStateByLineNr,makeStateTranstionStr,makeSystemString)
 --import String.Interpolate exposing(interpolate)
 import Set
 -- import String
@@ -25,6 +26,7 @@ type alias Transition =
     ,event: Maybe String
     ,guard: Maybe String
     ,action: Maybe String
+    ,lineNr: Int
     }
 
 type alias State =
@@ -136,7 +138,9 @@ convertTransitionRowToTransition transRows =
        convertToTransition row = { endState = isEmpty row.endState
                                  , event = isEmpty row.event
                                  , guard = isEmpty row.guard
-                                 , action = isEmpty row.action}
+                                 , action = isEmpty row.action
+                                 ,lineNr = row.lineNr
+                                 }
     in
         List.map convertToTransition transRows
 
@@ -187,25 +191,30 @@ guardStra: Maybe String -> Maybe String
 guardStra maybeguard =
     case maybeguard of
         Nothing -> Nothing
-        Just guard -> Just (" [" ++ guard ++ "] ")
+        Just guard -> Just (" [" ++ guard ++ "]")
 
 actionStra: Maybe String -> Maybe String
 actionStra maybeAction =
     case maybeAction of
         Nothing -> Nothing
-        Just action -> Just (" /" ++ action)
+        Just action -> Just (" / " ++ action)
 
+eventStra: Maybe String -> Maybe String
+eventStra maybeEv =
+    case maybeEv of
+        Nothing -> Nothing
+        Just event -> Just (" " ++ event)
 
 systemAttributeStr: Transition -> String
 systemAttributeStr tr =
     let
-        ev = Maybe.withDefault "" tr.event
+        ev = Maybe.withDefault ""  (eventStra tr.event)
         guard = Maybe.withDefault "" (guardStra tr.guard)
         action = Maybe.withDefault "" (actionStra tr.action)
     in
     case (ev,guard,action) of
         ("","","") -> ""
-        (_,_,_) -> ": " ++ ev ++ guard ++ action ++ "\n"
+        (_,_,_) -> ":" ++ ev ++ guard ++ action
 
 
 
@@ -215,7 +224,26 @@ makeTransitionStr name tr =
         Nothing -> name ++ systemAttributeStr tr ++ "\n"
         Just endState -> name ++ "->" ++ endState ++ systemAttributeStr tr ++ "\n"
 
--- stateStr: State -> String
+
+makeStateTranstionStr: List State -> String
+makeStateTranstionStr states =
+        List.foldl (\state acc ->
+                        let
+                            lstTransStr = List.map (\trans -> makeTransitionStr state.name trans) state.transitions
+                        in
+                            acc ++ (String.concat lstTransStr)
+                        ) "" states
+
+makeSystemString: System -> String
+makeSystemString system =
+    headerStartStr ++ (systemStartStr system.name) ++
+        (makeStateTranstionStr system.states) ++ systemEndStr ++ headerEndStr
+
+
+
+
+
+-- stateStr: State -> String<
 -- stateStr state =
 --     let
 --         List.map (\transition -> makeTransitionStr state.name transition)
@@ -258,3 +286,42 @@ plantUmlDataToString data =
            |> String.concat
            )
         ++ "@enduml\n"
+
+
+-------------------------------------------------------------------------------
+--                        Useful functions for system                        --
+-------------------------------------------------------------------------------
+getStateByIndex: Int -> System -> Maybe State
+getStateByIndex index system=
+    system.states
+        |> List.drop index
+        |> List.head
+
+getStateByName: String -> System -> Maybe State
+getStateByName name system =
+    let
+        lstState = List.filter (\state -> state.name == name) system.states
+    in
+        case lstState of
+            [state] -> Just state
+            [] -> Nothing
+            _ -> Debug.log "Something is strange" Nothing
+
+
+
+findStateByLineNr :  Int -> System -> Maybe State
+findStateByLineNr lineNr system  =
+    List.foldl
+        (\state acc ->
+             case acc of
+                 Just _ ->
+                     acc
+
+                 Nothing ->
+                     if List.any (\transition -> transition.lineNr == lineNr) state.transitions then
+                         Just state
+                     else
+                         Nothing
+        )
+        Nothing
+        system.states
