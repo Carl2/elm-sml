@@ -236,9 +236,9 @@ makeStateTranstionStr states =
 makeSystemString: System -> String
 makeSystemString system =
     let
-        startState = "[*]-->" ++ (List.head system.states
+        startState = Debug.log "StartState" ("[*]-->" ++ (findStateByLineNr 0 system
                    |> Maybe.withDefault {name="Empty", transitions=[]}
-                   |> .name) ++ "\n"
+                   |> .name) ++ "\n")
 
     in
     headerStartStr ++ (systemStartStr system.name) ++ startState ++
