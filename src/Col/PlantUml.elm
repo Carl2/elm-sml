@@ -181,12 +181,6 @@ systemStartStr name =
 systemEndStr: String
 systemEndStr = "}\n"
 
--- makeAttrStr: Maybe String -> Maybe String -> Maybe String -> String
--- makeAttrStr  preStr attributeStr postStr  =
---     case mStr of
---         Nothing -> ""
---         Just str ->  preStr ++ str
-
 guardStra: Maybe String -> Maybe String
 guardStra maybeguard =
     case maybeguard of
@@ -249,44 +243,6 @@ makeSystemString system =
     in
     headerStartStr ++ (systemStartStr system.name) ++ startState ++
         (makeStateTranstionStr system.states) ++ systemEndStr ++ headerEndStr
-
-
-
-
-
--- stateStr: State -> String<
--- stateStr state =
---     let
---         List.map (\transition -> makeTransitionStr state.name transition)
---     in
---         state.name ++
-
-
--- generatePlantUmlString: System -> Maybe String
--- generatePlantUmlString system =
---         "@startuml\n\n" ++ createNameStr system.name
-
-
-
-
-
--- getTransitions: String -> List TransitionRow -> List Transition
--- getTransitions state transitions =
---     List.map (\trans ->
---                   {
---                   ,endState = isEmpty trans.endState
---                   ,event = isEmpty trans.event
---                   ,guard = isEmpty trans.guard
---                   ,action= isEmpty trans.action
---                   }) transitions
-
-
--- parseTransition: Transition -> String
--- parseTransition trans =
---     case trans.
-
--- parseTransitions: List Transition -> String
--- parseTransitions transes =
 
 
 plantUmlDataToString : PlantUmlData -> String
