@@ -1,4 +1,5 @@
-module Col.CppData exposing (make_cpp_data,make_fsm_row,makeFsmRowTable,defaultName,makeConstexprClass,makeEventHeader)
+module Col.CppData exposing (make_cpp_data,make_fsm_row
+                            ,makeFsmRowTable,defaultName,makeConstexprClass,makeEventHeader,makeMain,smlStr)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import List.Extra as ListExtra
@@ -33,6 +34,16 @@ struct {0}
     // clang-format on
   }
 };
+"""
+
+smlStr = "sml::sm<"
+
+mainStr="""
+int main(int argc, char *argv[])
+{
+    {0}
+    return EXIT_SUCCESS;
+}
 """
 
 make_cpp_data: String -> String -> String -> String
@@ -193,3 +204,15 @@ makeEventHeader lstLstStr =
     lstLstStr
         |> eventLst
         |> List.foldl (\ev str ->  (interpolateEvent ev) ++ str ) ""
+
+-------------------------------------------------------------------------------
+--                             Make main function                            --
+-- It would be nice to actually create the functions here too.
+--
+-------------------------------------------------------------------------------
+makeMain: String ->String
+makeMain name=
+    let
+        output = smlStr ++ name ++ "> sm{};"
+    in
+    interpolate mainStr [output]
