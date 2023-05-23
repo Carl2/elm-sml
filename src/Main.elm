@@ -11,9 +11,11 @@ import Html.Events exposing (onInput,onClick)
 import Col.PlantUml as PU
 
 
+
 type alias Model =
-    { tableData : List (List String),
-          systemName : String
+    { tableData : List (List String)
+    ,systemName : String
+    ,mainContent : String
     }
 
 -- Port to javascript
@@ -24,6 +26,7 @@ init : () -> (Model, Cmd Msg)
 init _ =
     ({ tableData = List.repeat 5 (List.repeat 5 "")
     ,systemName = Cpp.defaultName
+     ,mainContent = Cpp.makeMain Cpp.defaultName
     },Cmd.none)
 
 
@@ -33,6 +36,7 @@ type Msg
       | AddRow
       | DelRow
       | MakeUmlDiagram
+      | UpdateMainContent String
 
 
 update : Msg -> Model -> (Model, Cmd msg)
@@ -64,15 +68,27 @@ update msg model =
                         table
             in
                 ({ model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData },Cmd.none)
-        UpdateMachineName str -> ({ model | systemName = str}, Cmd.none)
+        UpdateMachineName str -> updateMachineName str model
         AddRow ->
             ({model | tableData = List.append  model.tableData  [(List.repeat 5 "")]},Cmd.none)
         DelRow ->
             ({model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }, Cmd.none)
         MakeUmlDiagram ->
             (model, sendDiagram <| createPlantUmlDiagram model)
+        UpdateMainContent str ->
+            ({model | mainContent = str}, Cmd.none )
 
 
+updateMachineName: String -> Model -> (Model, Cmd msg)
+updateMachineName name model =
+    let
+        prevContent = Cpp.smlStr ++ model.systemName
+        newModel = {model | systemName = name
+                   , mainContent = (String.replace prevContent (Cpp.smlStr ++ name) model.mainContent)
+                   }
+
+    in
+    (newModel, Cmd.none)
 
 view : Model -> Html Msg
 view model =
@@ -83,6 +99,7 @@ view model =
         ,button [onClick DelRow] [ text "-"]
         ,makeCodeOutput model
         ,makeEventOutput model
+        ,makeMainOutput model
         ,button [onClick MakeUmlDiagram] [text "Make Uml Diagram" ]
 
         ]
@@ -119,14 +136,29 @@ makeCodeOutput model =
                |> text
 
     in
-        pre [id "language-cpp"] [code [class "language-cpp"] [cppStr]] --[cppStr]
+        pre [id "language-cpp"] [code [class "language-cpp"
+                                      , style "width" "940px"  -- set width
+                                      , style "height" "200px"  -- set height
+                                      ] [cppStr]] --[cppStr]
 
 makeEventOutput: Model -> Html msg
 makeEventOutput model =
-    div [] [pre [] [code []
+    div [] [pre [] [code [style "width" "940px"  -- set width
+                         , style "height" "200px"  -- set height
+                         ]
                         [text "// This could be placed in a header file"
-                         ,text (Cpp.makeEventHeader model.tableData) ] ]]
+                        , text (Cpp.makeEventHeader model.tableData)
+                        ] ]]
 
+makeMainOutput: Model -> Html Msg
+makeMainOutput model =
+    div [] [Html.textarea [value model.mainContent
+                          , style "width" "940px"  -- set width
+                          , style "height" "200px"  -- set height
+                          , placeholder "c++20 code"
+                          , Html.Events.onInput UpdateMainContent
+                          ] []
+           ]
 -------------------------------------------------------------------------------
 --                                    Old                                    --
 -------------------------------------------------------------------------------
