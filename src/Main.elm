@@ -5,33 +5,31 @@ port module Main exposing (main, update, Model, Msg(..))
 import Browser
 import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row,makeFsmRowTable)
 import Col.Table as Tbl exposing (..)
-import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,span,img)
+import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,span,img,option,select)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput,onClick)
 import Col.PlantUml as PU
 
 
+-- Port to javascript
+port sendDiagram : String -> Cmd msg
+
+
+type alias TableDataRow = { rowIndex : Int
+                          ,selected: String
+                          ,data : String
+                          }
+
 
 type alias Model =
-    { tableData : List (List String)
+    { tableData : List TableDataRow
     ,systemName : String
     ,mainContent : String
     }
 
--- Port to javascript
-port sendDiagram : String -> Cmd msg
-
--- 5 rows with 5 fields. List (List String)
-init : () -> (Model, Cmd Msg)
-init _ =
-    ({ tableData = List.repeat 5 (List.repeat 5 "")
-    ,systemName = Cpp.defaultName
-     ,mainContent = Cpp.makeMain Cpp.defaultName
-    },Cmd.none)
-
-
 type Msg
     = UpdateField Int Int String
+      | UpdateSelection Int String
       | UpdateMachineName String
       | AddRow
       | DelRow
@@ -39,44 +37,75 @@ type Msg
       | UpdateMainContent String
 
 
+convertTableData : List TableDataRow -> List String
+convertTableData tableDataRow =
+    (List.map .data) tableDataRow
+
+-- 5 rows with 5 fields. List (List String)
+init : () -> (Model, Cmd Msg)
+init _ =
+    let
+        initialRows = List.indexedMap
+                      (\rowIdx _
+                          ->
+                           { rowIndex = rowIdx , selected = "No Special", data = List.repeat 5 "" }
+                      ) (List.repeat 5 ())
+    in
+    ({ tableData = initialRows
+    , systemName = Cpp.defaultName
+    , mainContent = Cpp.makeMain Cpp.defaultName
+    }, Cmd.none)
+
+
+
+
+
 update : Msg -> Model -> (Model, Cmd msg)
 update msg model =
     case msg of
         UpdateField rowIndex fieldIndex newValue ->
             let
-                -- This is a function that takes and index and a new val and replaces that in the list
-                updateAtIndex idx val lst =
+                -- This is a function that takes an index and a new value and updates the 'data' field of the TableData object at that index.
+                updateDataAtIndex idx val lst =
                     List.indexedMap
-                        (\i x ->
-                            if i == idx then
-                                val
-
-                            else
-                                x
+                        (\i tableData ->
+                             if i == idx then
+                                 { tableData | data = val }
+                             else
+                                 tableData
                         )
                         lst
 
                 updateRowAt rowIdx fIndex value table =
                     List.indexedMap
                         (\i row ->
-                            if i == rowIdx then
-                                updateAtIndex fIndex value row
-
-                            else
-                                row
+                             if i == rowIdx then
+                                 updateDataAtIndex fIndex value row
+                             else
+                                 row
                         )
                         table
             in
-                ({ model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData },Cmd.none)
+                ({ model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData }, Cmd.none)
+
         UpdateMachineName str -> updateMachineName str model
         AddRow ->
-            ({model | tableData = List.append  model.tableData  [(List.repeat 5 "")]},Cmd.none)
+            let
+                newIndex = List.length model.tableData
+                newRow = List.repeat 5 { rowIndex = newIndex, selected = "", data = "" }
+            in
+                ({model | tableData = model.tableData ++ [newRow]}, Cmd.none)
         DelRow ->
             ({model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }, Cmd.none)
         MakeUmlDiagram ->
             (model, sendDiagram <| createPlantUmlDiagram model)
         UpdateMainContent str ->
             ({model | mainContent = str}, Cmd.none )
+        UpdateSelection row select ->
+            Debug.log ("selected "++select) (model,Cmd.none)
+
+
+
 
 
 updateMachineName: String -> Model -> (Model, Cmd msg)
@@ -119,7 +148,10 @@ makeSystemNameInput model =
 -------------------------------------------------------------------------------
 createPlantUmlDiagram: Model -> String
 createPlantUmlDiagram mdl =
-    mdl.tableData
+    let
+        data = convertTableData mdl.tableData
+    in
+        data
         |> PU.convertTable mdl.systemName
         |> PU.createSystem
         |> PU.makeSystemString
@@ -130,8 +162,8 @@ createPlantUmlDiagram mdl =
 makeCodeOutput: Model -> Html msg
 makeCodeOutput model =
     let
-        smlClass = Cpp.makeConstexprClass model.tableData
-        cppStr = makeFsmRowTable model.tableData
+        smlClass = Cpp.makeConstexprClass <| convertTableData model.tableData
+        cppStr = makeFsmRowTable  (convertTableData model.tableData)
                |> make_cpp_data  smlClass model.systemName
                |> text
 
@@ -147,7 +179,7 @@ makeEventOutput model =
                          , style "height" "200px"  -- set height
                          ]
                         [text "// This could be placed in a header file"
-                        , text (Cpp.makeEventHeader model.tableData)
+                        , text (Cpp.makeEventHeader <| convertTableData model.tableData)
                         ] ]]
 
 makeMainOutput: Model -> Html Msg
@@ -182,6 +214,14 @@ main =
 makeModelTable: Model -> List (Html Msg)
 makeModelTable model =
     let
+        onSpecial rowIndex =
+            [ select [  onInput (\selected -> UpdateSelection rowIndex selected) ]
+                  [option [ value "No special" ] [ text "No Special" ]
+                  , option [ value "on entry" ] [ text "On Entry" ]
+                  , option [ value "on exit" ] [ text "On Exit" ]
+                  ]
+            ]
+
         forEachField rowIndex row = List.indexedMap (\fieldIndex _ -> td []
                                                          [ input
                                                                [ type_ "text"
@@ -193,8 +233,12 @@ makeModelTable model =
                                                                           newValue)
                                                                ]
                                                                []
+
                                                          ]
-                                                    ) row
+                                                    ) row ++ (onSpecial rowIndex)
+
+
+
         forEachRow rows = List.indexedMap (\rowIndex row -> tr [] (forEachField rowIndex row)) rows
     in
         (List.append makeHeader (forEachRow model.tableData))
@@ -223,6 +267,9 @@ makeHeader =
     ,Html.th [style "background-color" "green", style "color" "white"] [
            Html.text "Action"
           ]
+    ,Html.th [style "background-color" "white", style "color" "black"] [
+          Html.text "Special"
+         ]
     ]
 
 

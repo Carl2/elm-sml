@@ -5,6 +5,18 @@ import Array exposing (fromList,get)
 import List.Extra as ListExtra
 import Debug
 
+
+isEntryStr: List (String,String)
+isEntryStr =
+    [ ("onentry","sml::on_entry<_>")
+    ,("on_entry","sml::on_entry<_>")
+    ,("sml::on_entry<_>","sml::on_entry<_>") ]
+
+isExitStr: List (String, String)
+isExitStr = [("onexit","sml::on_entry<_>")
+            ,("on_exit","sml::on_entry<_>")
+            ,("sml::on_entry<_>","sml::on_entry<_>")]
+
 endStateStr = "X"
 defaultName = "StateMachine"
 constexprFmt = "constexpr static auto {0} = sml::state<class {0}>;"
@@ -84,7 +96,7 @@ make_fsm_row lineNr start end event guard action =
         else
             let
                 args0 = if isNotEmpty end then
-                            updateAtIndex 4 ("= " ++ end) args
+                            updateAtIndex 4 ("= " ++ (handleEvents end)) args
                         else
                             args
                 args1 = if isNotEmpty event then
@@ -129,6 +141,21 @@ makeFsmRowTable lstLstStr =
         List.foldr concatenate_str "" lstMaybeStr
 
 
+
+handleOnSpecial: String -> List (String,String)-> Maybe String
+handleOnSpecial event specialKeys =
+    specialKeys
+        |> List.filter (\(key,val) -> String.toLower event == key  )
+        |> List.head
+        |> Maybe.map Tuple.second
+
+handleEvents: String -> String
+handleEvents event =
+        case handleOnSpecial event isEntryStr of
+            Just entryKey -> entryKey
+            Nothing -> case handleOnSpecial event isExitStr of
+                           Just exitKey -> exitKey
+                           Nothing -> event
 -------------------------------------------------------------------------------
 --                             Make sml constexpr                            --
 --  The idea is to make constexpr sml of the states.
@@ -141,6 +168,7 @@ makeFsmRowTable lstLstStr =
 
 interpolateStates: String -> String
 interpolateStates state =
+
     "    " ++ (interpolate constexprFmt [state]) ++ "\n"
 
 
