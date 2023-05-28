@@ -1,4 +1,4 @@
-port module Main exposing (main, update, Model, Msg(..))
+port module Main exposing (main, update, Model, Msg(..), convertTableData)
 
 --import Col.TableDef as Def exposing ()
 
@@ -17,7 +17,7 @@ port sendDiagram : String -> Cmd msg
 
 type alias TableDataRow = { rowIndex : Int
                           ,selected: String
-                          ,data : String
+                          ,data : List String
                           }
 
 
@@ -162,10 +162,12 @@ createPlantUmlDiagram mdl =
 makeCodeOutput: Model -> Html msg
 makeCodeOutput model =
     let
-        smlClass = Cpp.makeConstexprClass <| convertTableData model.tableData
-        cppStr = makeFsmRowTable  (convertTableData model.tableData)
-               |> make_cpp_data  smlClass model.systemName
-               |> text
+        --smlClass = Cpp.makeConstexprClass <| convertTableData model.tableData
+        --smlClass = "N/A"
+        -- cppStr = makeFsmRowTable  (convertTableData model.tableData)
+        --        |> make_cpp_data  smlClass model.systemName
+        --        |> text
+        cppStr = "N/A"
 
     in
         pre [id "language-cpp"] [code [class "language-cpp"
