@@ -1,29 +1,100 @@
-module NewModel exposing (newModelTest)
-import Main exposing (convertTableData, Model, Msg(..))
-exampleModel : Model
-exampleModel =
+module NewModel exposing (..)
+
+import Col.ModelData exposing (..)
+import Expect
+import Test exposing (..)
+
+testModel : Model
+testModel =
     { tableData =
-        [ { rowIndex = 1, selected = "Yes", data = ["State1", "State2", "Ev1", "Guard1", "Action1"] }
-        , { rowIndex = 2, selected = "No", data = ["State2", "state3", "Ev2", "Guard2", "Action2"] }
-        , { rowIndex = 3, selected = "Yes", data = ["State3", "state4", "Ev3", "Guard3", "Action3"] }
-        , { rowIndex = 4, selected = "No", data = ["State4", "state5", "Ev4", "Guard4", "Action4"] }
-        , { rowIndex = 5, selected = "Yes", data = ["State5", "state5", "Ev5", "Guard5", "Action5"] }
+        [ { rowIndex = 1
+          , selected = "selected"
+          , data =
+              [ { startState = Just "startState1"
+                , endState = Just "endState1"
+                , event = Nothing
+                , guard = Just "guard1"
+                , action = Nothing
+                }
+              ]
+          }
+        , { rowIndex = 2
+          , selected = "selected"
+          , data =
+              [ { startState = Just "startState2"
+                , endState = Nothing
+                , event = Just "event2"
+                , guard = Nothing
+                , action = Just "action2"
+                }
+              ]
+          }
+        , { rowIndex = 3
+          , selected = "selected"
+          , data =
+              [ { startState = Just "startState3"
+                , endState = Just "endState3"
+                , event = Nothing
+                , guard = Nothing
+                , action = Just "action3"
+                }
+              ]
+          }
+        , { rowIndex = 4
+          , selected = "selected"
+          , data =
+              [ { startState = Just "startState4"
+                , endState = Nothing
+                , event = Just "event4"
+                , guard = Just "guard4"
+                , action = Nothing
+                }
+              ]
+          }
+        , { rowIndex = 5
+          , selected = "selected"
+          , data =
+              [ { startState = Just "startState5"
+                , endState = Just "endState5"
+                , event = Just "event5"
+                , guard = Nothing
+                , action = Nothing
+                }
+              ]
+          }
         ]
-    , systemName = "Elm System"
-    , mainContent = "Main content here"
+    , systemName = "Test System"
+    , mainContent = "Main Content Here"
     }
 
 
-newModelTest: Test
-newModelTest
-    describe "New model test"
-        [test "Convert to data to string" <|
-             \_ ->
-             convertTableData exampleModel.tableData |> Expect.equal [["State1", "State2", "Ev1", "Guard1", "Action1"]
-                                                                     ,["State2", "state3", "Ev2", "Guard2", "Action2"]
-                                                                     ,["State3", "state4", "Ev3", "Guard3", "Action3"]
-                                                                     ,["State4", "state5", "Ev4", "Guard4", "Action4"]
-                                                                     ,["State5", "state5", "Ev5", "Guard5", "Action5"]
-                                                                     ]
-             ]
+tests : Test
+tests =
+    describe "extractRowData"
+        [ test "it should replace Nothing with an empty string" <|
+            \_ ->
+                let
+                    rowData =
+                        { startState = Just "start"
+                        , endState = Nothing
+                        , event = Just "event"
+                        , guard = Nothing
+                        , action = Just "action"
+                        }
+
+                    tableData =
+                        [ { rowIndex = 1
+                          , selected = "selected"
+                          , data = [ rowData ]
+                          }
+                        ]
+
+                    model =
+                        { tableData = tableData
+                        , systemName = "TestSystem"
+                        , mainContent = ""
+                        }
+                in
+                convertToStringList model
+                    |> Expect.equal [ [ "start", "", "event", "", "action" ] ]
         ]
