@@ -1,5 +1,6 @@
-module Col.ModelData exposing (Model,convertToStringList)
+module Col.ModelData exposing (Model,convertToStringList,init)
 import Maybe
+import Col.CppData as Cpp
 
 
 type alias RowData =
@@ -14,7 +15,7 @@ type alias RowData =
 
 type alias TableDataRow = { rowIndex : Int
                           ,selected: String
-                          ,data : List RowData
+                          ,data : RowData
                           }
 
 
@@ -25,6 +26,31 @@ type alias Model =
     }
 
 
+defaultRowData : RowData
+defaultRowData =
+    { startState = Nothing
+    , endState = Nothing
+    , event = Nothing
+    , guard = Nothing
+    , action = Nothing
+    }
+
+createTableDataRow : Int -> TableDataRow
+createTableDataRow index =
+    { rowIndex = index
+    , selected = "No Special"
+    , data = defaultRowData
+    }
+
+
+init: () -> (Model, Cmd msg)
+init _ =
+    ({ tableData = List.map createTableDataRow <| List.range 0 4
+    , systemName = Cpp.defaultName
+    , mainContent = Cpp.makeMain Cpp.defaultName
+    },Cmd.none)
+
+
 -------------------------------------------------------------------------------
 -- During conversion to this construct
 -- I will create a function that creates a List (List String)
@@ -33,7 +59,7 @@ type alias Model =
 -------------------------------------------------------------------------------
 rowDataToStringList : RowData -> List String
 rowDataToStringList rowData =
-    [ Maybe.withDefault "" rowData.startState
+    [Maybe.withDefault "" rowData.startState
     , Maybe.withDefault "" rowData.endState
     , Maybe.withDefault "" rowData.event
     , Maybe.withDefault "" rowData.guard
@@ -42,6 +68,9 @@ rowDataToStringList rowData =
 
 
 
+
+
+
 convertToStringList: Model -> List (List String)
 convertToStringList model =
-    List.concatMap (\row -> List.map rowDataToStringList row.data) model.tableData
+    List.map (\rowData -> rowDataToStringList rowData.data) model.tableData
