@@ -1,4 +1,4 @@
-port module Main exposing (main, update, Model, Msg(..), convertTableData)
+port module Main exposing (main, update,  Msg(..), convertTableData)
 
 --import Col.TableDef as Def exposing ()
 
@@ -9,23 +9,24 @@ import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,s
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput,onClick)
 import Col.PlantUml as PU
+import Col.ModelData as MD exposing(Model,TableDataRow,RowData,convertToStringList,init)
 
 
 -- Port to javascript
 port sendDiagram : String -> Cmd msg
 
 
-type alias TableDataRow = { rowIndex : Int
-                          ,selected: String
-                          ,data : List String
-                          }
+-- type alias TableDataRow = { rowIndex : Int
+--                           ,selected: String
+--                           ,data : List String
+--                           }
 
 
-type alias Model =
-    { tableData : List TableDataRow
-    ,systemName : String
-    ,mainContent : String
-    }
+-- type alias Model =
+--     { tableData : List TableDataRow
+--     ,systemName : String
+--     ,mainContent : String
+--     }
 
 type Msg
     = UpdateField Int Int String
@@ -42,19 +43,19 @@ convertTableData tableDataRow =
     (List.map .data) tableDataRow
 
 -- 5 rows with 5 fields. List (List String)
-init : () -> (Model, Cmd Msg)
-init _ =
-    let
-        initialRows = List.indexedMap
-                      (\rowIdx _
-                          ->
-                           { rowIndex = rowIdx , selected = "No Special", data = List.repeat 5 "" }
-                      ) (List.repeat 5 ())
-    in
-    ({ tableData = initialRows
-    , systemName = Cpp.defaultName
-    , mainContent = Cpp.makeMain Cpp.defaultName
-    }, Cmd.none)
+-- init : () -> (Model, Cmd Msg)
+-- init _ =
+--     let
+--         initialRows = List.indexedMap
+--                       (\rowIdx _
+--                           ->
+--                            { rowIndex = rowIdx , selected = "No Special", data = List.repeat 5 "" }
+--                       ) (List.repeat 5 ())
+--     in
+--     ({ tableData = initialRows
+--     , systemName = Cpp.defaultName
+--     , mainContent = Cpp.makeMain Cpp.defaultName
+--     }, Cmd.none)
 
 
 
@@ -181,7 +182,7 @@ makeEventOutput model =
                          , style "height" "200px"  -- set height
                          ]
                         [text "// This could be placed in a header file"
-                        , text (Cpp.makeEventHeader <| convertTableData model.tableData)
+                        , text (Cpp.makeEventHeader <| convertToStringList model.tableData)
                         ] ]]
 
 makeMainOutput: Model -> Html Msg
