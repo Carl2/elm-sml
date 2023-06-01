@@ -1,4 +1,4 @@
-module Col.ModelData exposing (Model,TableDataRow,RowData,convertToStringList,init)
+module Col.ModelData exposing (Model,TableDataRow,RowData,defaultRowData,convertToStringList,init)
 import Maybe
 import Col.CppData as Cpp
 

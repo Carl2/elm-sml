@@ -93,9 +93,9 @@ update msg model =
         AddRow ->
             let
                 newIndex = List.length model.tableData
-                newRow = List.repeat 5 { rowIndex = newIndex, selected = "", data = "" }
+                newRow = List.repeat 5 { rowIndex = newIndex, selected = "No Special", data = MD.defaultRowData }
             in
-                ({model | tableData = model.tableData ++ [newRow]}, Cmd.none)
+                ({model | tableData = model.tableData ++ newRow}, Cmd.none)
         DelRow ->
             ({model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }, Cmd.none)
         MakeUmlDiagram ->
