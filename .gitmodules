@@ -1,0 +1,3 @@
+[submodule "plantuml-encoder"]
+	path = plantuml-encoder
+	url = git@github.com:markushedvall/plantuml-encoder.git

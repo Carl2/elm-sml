@@ -138,7 +138,8 @@ makeCodeOutput: Model -> Html msg
 makeCodeOutput model =
     let
         smlClass = Cpp.makeConstexprClass <|  convertToStringList model
-        cppStr = makeFsmRowTable  ( convertToStringList model)
+        --cppStr = makeFsmRowTable  ( convertToStringList model)
+        cppStr = Cpp.makeFsmRowFromModel model
                |> make_cpp_data  smlClass model.systemName
                |> text
 

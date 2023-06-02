@@ -1,5 +1,6 @@
 module Col.CppData exposing (make_cpp_data,make_fsm_row
-                            ,makeFsmRowTable,defaultName,makeConstexprClass,makeEventHeader)
+                            ,makeFsmRowTable,defaultName,makeConstexprClass,makeEventHeader
+                            ,makeFsmRowFromModel)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import List.Extra as ListExtra
@@ -228,6 +229,45 @@ makeEventHeader lstLstStr =
 ------------
 -- ReMake --
 ------------
--- makeFsmRowTable: MD.Model -> String
--- makeFsmRowTable model =
---     "Eh"
+
+
+
+makeFsmRowFromData: RowData -> Int -> Bool -> String
+makeFsmRowFromData rowData rowIdx special =
+    let
+        specialStr maybeStr maybeOther= if special == True then
+                                            Maybe.withDefault "" maybeOther
+                                        else
+                                            (Maybe.withDefault "" maybeStr)
+
+
+        resStr =  make_fsm_row rowIdx (Maybe.withDefault "" rowData.startState )
+                     (specialStr rowData.endState Nothing)
+                     (specialStr rowData.event (Just "sml::on_entry(_)"))
+                     (specialStr rowData.guard Nothing)
+                     (Maybe.withDefault "" rowData.action)
+    in
+        case resStr of
+            Ok str ->  str ++ "\n        "
+            Err str -> ""
+
+
+makeFsmFromRowTable: TableDataRow -> String
+makeFsmFromRowTable tblDataRow =
+    let
+        specialStr = Debug.log "selected " (String.toLower tblDataRow.selected)
+    in
+        if specialStr == "no special" then
+            makeFsmRowFromData tblDataRow.data  tblDataRow.rowIndex False
+        else
+            makeFsmRowFromData tblDataRow.data tblDataRow.rowIndex True
+
+
+
+
+
+
+makeFsmRowFromModel: MD.Model -> String
+makeFsmRowFromModel model =
+    List.map makeFsmFromRowTable model.tableData
+        |> String.concat
