@@ -1,4 +1,4 @@
-port module Main exposing (main, update,  Msg(..), convertTableData)
+port module Main exposing (main, update,  Msg(..))
 
 --import Col.TableDef as Def exposing ()
 
@@ -38,9 +38,9 @@ type Msg
       | UpdateMainContent String
 
 
-convertTableData : List TableDataRow -> List String
-convertTableData tableDataRow =
-    (List.map .data) tableDataRow
+-- convertTableData : List TableDataRow -> List String
+-- convertTableData tableDataRow =
+--     (List.map .data) tableDataRow
 
 -- 5 rows with 5 fields. List (List String)
 -- init : () -> (Model, Cmd Msg)
@@ -67,25 +67,16 @@ update msg model =
         UpdateField rowIndex fieldIndex newValue ->
             let
                 -- This is a function that takes an index and a new value and updates the 'data' field of the TableData object at that index.
-                updateDataAtIndex idx val lst =
-                    List.indexedMap
-                        (\i tableData ->
-                             if i == idx then
-                                 { tableData | data = val }
-                             else
-                                 tableData
-                        )
-                        lst
 
-                updateRowAt rowIdx fIndex value table =
+                updateRowAt rowIdx fIndex value tableRows =
                     List.indexedMap
-                        (\i row ->
+                        (\i tableDataRow ->
                              if i == rowIdx then
-                                 updateDataAtIndex fIndex value row
+                                 {tableDataRow | data = MD.updateDataAtIndex fIndex value tableDataRow.data}
                              else
-                                 row
+                                 tableDataRow -- No change
                         )
-                        table
+                        tableRows
             in
                 ({ model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData }, Cmd.none)
 
@@ -150,7 +141,7 @@ makeSystemNameInput model =
 createPlantUmlDiagram: Model -> String
 createPlantUmlDiagram mdl =
     let
-        data = convertTableData mdl.tableData
+        data = convertToStringList mdl
     in
         data
         |> PU.convertTable mdl.systemName
@@ -163,12 +154,12 @@ createPlantUmlDiagram mdl =
 makeCodeOutput: Model -> Html msg
 makeCodeOutput model =
     let
-        --smlClass = Cpp.makeConstexprClass <| convertTableData model.tableData
+        smlClass = Cpp.makeConstexprClass <|  convertToStringList model
         --smlClass = "N/A"
-        -- cppStr = makeFsmRowTable  (convertTableData model.tableData)
-        --        |> make_cpp_data  smlClass model.systemName
-        --        |> text
-        cppStr = "N/A"
+        cppStr = makeFsmRowTable  ( convertToStringList model)
+               |> make_cpp_data  smlClass model.systemName
+               |> text
+    --cppStr = "N/A"
 
     in
         pre [id "language-cpp"] [code [class "language-cpp"
@@ -182,7 +173,7 @@ makeEventOutput model =
                          , style "height" "200px"  -- set height
                          ]
                         [text "// This could be placed in a header file"
-                        , text (Cpp.makeEventHeader <| convertToStringList model.tableData)
+                        , text (Cpp.makeEventHeader <| convertToStringList model)
                         ] ]]
 
 makeMainOutput: Model -> Html Msg
@@ -214,38 +205,47 @@ main =
 -------------------------------------------------------------------------------
 --                              Make html table                              --
 -------------------------------------------------------------------------------
-makeModelTable: Model -> List (Html Msg)
-makeModelTable model =
+forEachField: Int -> TableDataRow -> List (Html Msg)
+forEachField rowIndex tableDataRow =
     let
-        onSpecial rowIndex =
-            [ select [  onInput (\selected -> UpdateSelection rowIndex selected) ]
+        onSpecial rowIdx =
+            [ select [  onInput (\selected -> UpdateSelection rowIdx selected) ]
                   [option [ value "No special" ] [ text "No Special" ]
                   , option [ value "on entry" ] [ text "On Entry" ]
                   , option [ value "on exit" ] [ text "On Exit" ]
                   ]
             ]
 
-        forEachField rowIndex row = List.indexedMap (\fieldIndex _ -> td []
-                                                         [ input
-                                                               [ type_ "text"
-                                                               , placeholder (getPlaceHolderText fieldIndex)
-                                                               , Html.Events.onInput
-                                                                     (\newValue -> UpdateField
-                                                                          rowIndex
-                                                                          fieldIndex
-                                                                          newValue)
-                                                               ]
-                                                               []
-
-                                                         ]
-                                                    ) row ++ (onSpecial rowIndex)
 
 
+        rowData = tableDataRow.data
+        fields = [rowData.startState, rowData.endState, rowData.event, rowData.guard, rowData.action]
+    in
+    List.indexedMap (\fieldIndex _ -> td []
+                         [ input
+                               [ type_ "text"
+                               , placeholder (getPlaceHolderText fieldIndex)
+                               , Html.Events.onInput
+                                     (\newValue -> UpdateField
+                                          rowIndex
+                                          fieldIndex
+                                          newValue)
 
-        forEachRow rows = List.indexedMap (\rowIndex row -> tr [] (forEachField rowIndex row)) rows
+                               ]
+                               []
+                         ]
+                    ) fields ++ (onSpecial rowIndex)
+
+
+
+makeModelTable: Model -> List (Html Msg)
+makeModelTable model =
+    let
+
+
+        forEachRow tableDatas = List.indexedMap (\rowIndex tableData -> tr [] (forEachField rowIndex tableData) ) tableDatas
     in
         (List.append makeHeader (forEachRow model.tableData))
-
 
 
 

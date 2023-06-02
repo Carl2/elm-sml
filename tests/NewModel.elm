@@ -143,4 +143,24 @@ tests =
                                                 , selected = "No Special" }] }
                   in
                       Expect.equal (init ()) (expected,Cmd.none)
+        ,test "Check the update functio on index" <|
+            \_ ->
+                let
+                    rowData = { action = Nothing
+                              , endState = Nothing
+                              , event = Nothing
+                              , guard = Nothing
+                              , startState = Nothing }
+
+                    rowDataExpected = {action = Nothing
+                                      , endState = Nothing
+                                      , event = Just "event"
+                                      , guard = Nothing
+                                      , startState = Just "state1" }
+
+                    val = updateDataAtIndex 2 "event" rowData
+                          |> updateDataAtIndex 0 "state1"
+
+                in
+                    Expect.equal rowDataExpected val
         ]

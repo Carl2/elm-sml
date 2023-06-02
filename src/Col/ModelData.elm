@@ -1,4 +1,10 @@
-module Col.ModelData exposing (Model,TableDataRow,RowData,defaultRowData,convertToStringList,init)
+module Col.ModelData exposing (Model,TableDataRow,RowData
+                                   ,defaultRowData
+                                   ,convertToStringList
+                                   ,init
+                                   ,rowDataToStringList
+                                   ,updateDataAtIndex
+                              )
 import Maybe
 import Col.CppData as Cpp
 
@@ -13,7 +19,7 @@ type alias RowData =
 
 
 
-type alias TableDataRow = { rowIndex : Int
+type alias TableDataRow  = { rowIndex : Int
                           ,selected: String
                           ,data : RowData
                           }
@@ -74,3 +80,20 @@ rowDataToStringList rowData =
 convertToStringList: Model -> List (List String)
 convertToStringList model =
     List.map (\rowData -> rowDataToStringList rowData.data) model.tableData
+
+--
+-------------------------------------------------------------------------------
+--                                  Update Row data at a index
+--  The index is the field index accordingly
+-------------------------------------------------------------------------------
+updateDataAtIndex: Int -> String -> RowData -> RowData
+updateDataAtIndex index newValue rowData =
+    case index of
+        0 -> { rowData | startState = Just newValue }
+        1 -> { rowData | endState = Just newValue }
+        2 -> { rowData | event = Just newValue }
+        3 -> { rowData | guard = Just newValue }
+        4 -> { rowData | action = Just newValue }
+        _ -> rowData
+
+--getRowDataFromIndex: Int -> List TableDataRow -> RowData
