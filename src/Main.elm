@@ -4,12 +4,12 @@ port module Main exposing (main, update,  Msg(..))
 
 import Browser
 import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row,makeFsmRowTable)
-import Col.Table as Tbl exposing (..)
 import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,span,img,option,select)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput,onClick)
 import Col.PlantUml as PU
 import Col.ModelData as MD exposing(Model,TableDataRow,RowData,convertToStringList,init)
+import Col.Default as DF
 
 
 -- Port to javascript
@@ -38,24 +38,6 @@ type Msg
       | UpdateMainContent String
 
 
--- convertTableData : List TableDataRow -> List String
--- convertTableData tableDataRow =
---     (List.map .data) tableDataRow
-
--- 5 rows with 5 fields. List (List String)
--- init : () -> (Model, Cmd Msg)
--- init _ =
---     let
---         initialRows = List.indexedMap
---                       (\rowIdx _
---                           ->
---                            { rowIndex = rowIdx , selected = "No Special", data = List.repeat 5 "" }
---                       ) (List.repeat 5 ())
---     in
---     ({ tableData = initialRows
---     , systemName = Cpp.defaultName
---     , mainContent = Cpp.makeMain Cpp.defaultName
---     }, Cmd.none)
 
 
 
@@ -84,17 +66,18 @@ update msg model =
         AddRow ->
             let
                 newIndex = List.length model.tableData
-                newRow = List.repeat 5 { rowIndex = newIndex, selected = "No Special", data = MD.defaultRowData }
+                newRow =  { rowIndex = newIndex, selected = "No Special", data = MD.defaultRowData }
             in
-                ({model | tableData = model.tableData ++ newRow}, Cmd.none)
+                ({model | tableData = model.tableData ++ [newRow]}, Cmd.none)
         DelRow ->
             ({model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }, Cmd.none)
         MakeUmlDiagram ->
             (model, sendDiagram <| createPlantUmlDiagram model)
         UpdateMainContent str ->
             ({model | mainContent = str}, Cmd.none )
-        UpdateSelection row select ->
-            Debug.log ("selected "++select) (model,Cmd.none)
+        UpdateSelection rowIdx select ->
+            (MD.updateSelected model rowIdx select,Cmd.none)
+
 
 
 
@@ -103,9 +86,9 @@ update msg model =
 updateMachineName: String -> Model -> (Model, Cmd msg)
 updateMachineName name model =
     let
-        prevContent = Cpp.smlStr ++ model.systemName
+        prevContent = DF.smlStr ++ model.systemName
         newModel = {model | systemName = name
-                   , mainContent = (String.replace prevContent (Cpp.smlStr ++ name) model.mainContent)
+                   , mainContent = (String.replace prevContent (DF.smlStr ++ name) model.mainContent)
                    }
 
     in
@@ -155,11 +138,9 @@ makeCodeOutput: Model -> Html msg
 makeCodeOutput model =
     let
         smlClass = Cpp.makeConstexprClass <|  convertToStringList model
-        --smlClass = "N/A"
         cppStr = makeFsmRowTable  ( convertToStringList model)
                |> make_cpp_data  smlClass model.systemName
                |> text
-    --cppStr = "N/A"
 
     in
         pre [id "language-cpp"] [code [class "language-cpp"
@@ -205,6 +186,26 @@ main =
 -------------------------------------------------------------------------------
 --                              Make html table                              --
 -------------------------------------------------------------------------------
+isDisabled: Int -> String -> Bool
+isDisabled fieldIdx special =
+    let
+        specialDisable idx = case idx of
+                                 0 -> False
+                                 1 -> True
+                                 2 -> True
+                                 3 -> True --Can i have a guard on "On_entry?"
+                                 4 -> False
+                                 _ -> True
+
+
+        lowerSpecial = Debug.log "Special :" (String.toLower special)
+    in
+        if lowerSpecial /= "no special" then
+            specialDisable fieldIdx
+        else
+            False
+
+
 forEachField: Int -> TableDataRow -> List (Html Msg)
 forEachField rowIndex tableDataRow =
     let
@@ -221,9 +222,10 @@ forEachField rowIndex tableDataRow =
         rowData = tableDataRow.data
         fields = [rowData.startState, rowData.endState, rowData.event, rowData.guard, rowData.action]
     in
-    List.indexedMap (\fieldIndex _ -> td []
+    List.indexedMap (\fieldIndex field -> td []
                          [ input
                                [ type_ "text"
+                               , disabled <| isDisabled fieldIndex tableDataRow.selected
                                , placeholder (getPlaceHolderText fieldIndex)
                                , Html.Events.onInput
                                      (\newValue -> UpdateField

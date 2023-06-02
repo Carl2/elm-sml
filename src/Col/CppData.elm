@@ -1,9 +1,10 @@
 module Col.CppData exposing (make_cpp_data,make_fsm_row
-                            ,makeFsmRowTable,defaultName,makeConstexprClass,makeEventHeader,makeMain,smlStr)
+                            ,makeFsmRowTable,defaultName,makeConstexprClass,makeEventHeader)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import List.Extra as ListExtra
 import Debug
+import Col.ModelData as MD exposing (Model,TableDataRow,RowData)
 
 
 isEntryStr: List (String,String)
@@ -48,15 +49,6 @@ struct {0}
 };
 """
 
-smlStr = "sml::sm<"
-
-mainStr="""
-int main(int argc, char *argv[])
-{
-    {0}
-    return EXIT_SUCCESS;
-}
-"""
 
 make_cpp_data: String -> String -> String -> String
 make_cpp_data stateClass modelName str =
@@ -151,11 +143,9 @@ handleOnSpecial event specialKeys =
 
 handleEvents: String -> String
 handleEvents event =
-        case handleOnSpecial event isEntryStr of
-            Just entryKey -> entryKey
-            Nothing -> case handleOnSpecial event isExitStr of
-                           Just exitKey -> exitKey
-                           Nothing -> event
+    case handleOnSpecial event isExitStr of
+                   Just exitKey -> exitKey
+                   Nothing -> event
 -------------------------------------------------------------------------------
 --                             Make sml constexpr                            --
 --  The idea is to make constexpr sml of the states.
@@ -233,14 +223,11 @@ makeEventHeader lstLstStr =
         |> eventLst
         |> List.foldl (\ev str ->  (interpolateEvent ev) ++ str ) ""
 
--------------------------------------------------------------------------------
---                             Make main function                            --
--- It would be nice to actually create the functions here too.
---
--------------------------------------------------------------------------------
-makeMain: String ->String
-makeMain name=
-    let
-        output = smlStr ++ name ++ "> sm{};"
-    in
-    interpolate mainStr [output]
+
+
+------------
+-- ReMake --
+------------
+-- makeFsmRowTable: MD.Model -> String
+-- makeFsmRowTable model =
+--     "Eh"

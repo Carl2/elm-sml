@@ -4,9 +4,10 @@ module Col.ModelData exposing (Model,TableDataRow,RowData
                                    ,init
                                    ,rowDataToStringList
                                    ,updateDataAtIndex
+                                   ,updateSelected
                               )
 import Maybe
-import Col.CppData as Cpp
+import Col.Default as DF
 
 
 type alias RowData =
@@ -52,8 +53,8 @@ createTableDataRow index =
 init: () -> (Model, Cmd msg)
 init _ =
     ({ tableData = List.map createTableDataRow <| List.range 0 4
-    , systemName = Cpp.defaultName
-    , mainContent = Cpp.makeMain Cpp.defaultName
+    , systemName = DF.defaultName
+    , mainContent = DF.makeMain DF.defaultName
     },Cmd.none)
 
 
@@ -96,4 +97,14 @@ updateDataAtIndex index newValue rowData =
         4 -> { rowData | action = Just newValue }
         _ -> rowData
 
---getRowDataFromIndex: Int -> List TableDataRow -> RowData
+
+updateSelected : Model -> Int -> String -> Model
+updateSelected model rowIndex newValue =
+    let
+        updateRow row =
+            if row.rowIndex == rowIndex then
+                { row | selected = newValue }
+            else
+                row
+    in
+    { model | tableData = List.map updateRow model.tableData }
