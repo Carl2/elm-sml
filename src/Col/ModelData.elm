@@ -1,10 +1,11 @@
-module Col.ModelData exposing (Model,TableDataRow,RowData
+module Col.ModelData exposing (Model,TableDataRow,RowData,Selected(..)
                                    ,defaultRowData
                                    ,convertToStringList
                                    ,init
                                    ,rowDataToStringList
                                    ,updateDataAtIndex
                                    ,updateSelected
+                                   ,convertSelected
                               )
 import Maybe
 import Col.Default as DF
@@ -31,6 +32,24 @@ type alias Model =
     ,systemName : String
     ,mainContent : String
     }
+
+type Selected =
+    NO
+    | ON_ENTRY
+    | ON_EXIT
+
+
+convertSelected: String -> Maybe Selected
+convertSelected str =
+    let
+        lowStr = String.toLower str
+    in
+        case lowStr of
+            "no special" -> Just NO
+            "on entry" -> Just ON_ENTRY
+            "on exit" -> Just ON_EXIT
+            _ -> Nothing
+
 
 
 defaultRowData : RowData

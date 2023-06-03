@@ -5,7 +5,7 @@ import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import List.Extra as ListExtra
 import Debug
-import Col.ModelData as MD exposing (Model,TableDataRow,RowData)
+import Col.ModelData as MD exposing (Model,TableDataRow,RowData,Selected(..))
 
 
 isEntryStr: List (String,String)
@@ -229,23 +229,49 @@ makeEventHeader lstLstStr =
 ------------
 -- ReMake --
 ------------
+type StateTransitionType
+    = StartState (Maybe String)
+    | EndState (Maybe String)
+    | Event (Maybe String)
+    | Guard (Maybe String)
+    | Action (Maybe String)
 
 
-
-makeFsmRowFromData: RowData -> Int -> Bool -> String
-makeFsmRowFromData rowData rowIdx special =
+handleStateTransition: Selected -> StateTransitionType -> String
+handleStateTransition selected stateType =
     let
-        specialStr maybeStr maybeOther= if special == True then
-                                            Maybe.withDefault "" maybeOther
-                                        else
-                                            (Maybe.withDefault "" maybeStr)
+        special sel mStr = case selected of
+                               NO -> (Maybe.withDefault "" mStr)
+                               ON_ENTRY -> "sml::on_entry(_)"
+                               ON_EXIT ->  "sml::on_exit(_)"
+
+        noStrForSpecial sel mStr = case sel of
+                                       NO -> Maybe.withDefault "" mStr
+                                       _ -> ""
+    in
+        case stateType of
+            StartState state -> Maybe.withDefault "" state
+            EndState state -> noStrForSpecial selected state
+            Event event -> special selected event
+            Guard guard -> noStrForSpecial selected guard
+            Action act  -> Maybe.withDefault "" act
 
 
-        resStr =  make_fsm_row rowIdx (Maybe.withDefault "" rowData.startState )
-                     (specialStr rowData.endState Nothing)
-                     (specialStr rowData.event (Just "sml::on_entry(_)"))
-                     (specialStr rowData.guard Nothing)
-                     (Maybe.withDefault "" rowData.action)
+
+
+
+
+makeFsmRowFromData: RowData -> Int -> MD.Selected -> String
+makeFsmRowFromData rowData rowIdx selected =
+    let
+
+        resStr =  make_fsm_row rowIdx
+                  (handleStateTransition selected <| StartState <| rowData.startState)
+                  (handleStateTransition selected <| EndState <| rowData.endState)
+                  (handleStateTransition selected <| Event <| rowData.event)
+                  (handleStateTransition selected <| Guard <| rowData.guard)
+                  (handleStateTransition selected <| Action <| rowData.action)
+
     in
         case resStr of
             Ok str ->  str ++ "\n        "
@@ -254,16 +280,8 @@ makeFsmRowFromData rowData rowIdx special =
 
 makeFsmFromRowTable: TableDataRow -> String
 makeFsmFromRowTable tblDataRow =
-    let
-        specialStr = Debug.log "selected " (String.toLower tblDataRow.selected)
-    in
-        if specialStr == "no special" then
-            makeFsmRowFromData tblDataRow.data  tblDataRow.rowIndex False
-        else
-            makeFsmRowFromData tblDataRow.data tblDataRow.rowIndex True
-
-
-
+        makeFsmRowFromData tblDataRow.data  tblDataRow.rowIndex
+            <| Maybe.withDefault NO (MD.convertSelected tblDataRow.selected)
 
 
 
