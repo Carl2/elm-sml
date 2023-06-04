@@ -3,7 +3,7 @@ port module Main exposing (main, update,  Msg(..))
 --import Col.TableDef as Def exposing ()
 
 import Browser
-import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row,makeFsmRowTable)
+import Col.CppData as Cpp
 import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,span,img,option,select)
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput,onClick)
@@ -139,7 +139,7 @@ makeCodeOutput model =
     let
         smlClass = Cpp.makeConstexprClass <|  convertToStringList model
         cppStr = Cpp.makeFsmRowFromModel model
-               |> make_cpp_data  smlClass model.systemName
+               |> Cpp.make_cpp_data  smlClass model.systemName
                |> text
 
     in

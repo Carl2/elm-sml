@@ -3,6 +3,7 @@ module NewModel exposing (..)
 import Col.ModelData exposing (..)
 import Expect
 import Test exposing (..)
+import Col.CppData exposing(..)
 
 testModel : Model
 testModel =
@@ -163,4 +164,49 @@ tests =
 
                 in
                     Expect.equal rowDataExpected val
+        ,test "Test makeFsmRowFromData" <|
+            \_ ->
+                let
+                    rowData ={ startState = Just "startState5"
+                             , endState = Just "endState5"
+                             , event = Just "event5"
+                             , guard = Nothing
+                             , action = Nothing
+                             }
+
+                    str = makeFsmRowFromData rowData 0 NO
+                in
+
+                    str |> Expect.equal "*startState5     +event<event5>     = endState5\n        "
+        ,test "Test with 2" <|
+            \_ ->
+                let
+                    mymodel ={ tableData =
+                                   [
+                                    { rowIndex = 0
+                                    , selected = "No Special"
+                                    , data =
+                                          { startState = Just "startState1"
+                                          , endState = Just "endState1"
+                                          , event = Nothing
+                                          , guard = Just "guard1"
+                                          , action = Nothing
+                                          }
+                                    }
+                                   , { rowIndex = 1
+                                     , selected = "No Special"
+                                     , data =
+                                           { startState = Just "startState2"
+                                           , endState = Nothing
+                                           , event = Just "event2"
+                                           , guard = Just "guard2"
+                                           , action = Just "action2"
+                                           }
+                                     }
+                                   ]
+                             , systemName = "TestSystem"
+                             , mainContent = ""
+                             }
+                in
+                    makeFsmRowFromModel mymodel |> Expect.equal ""
         ]
