@@ -198,6 +198,7 @@ guardStra maybeguard =
         Nothing -> Nothing
         Just guard -> Just (" [" ++ guard ++ "]")
 
+-- Here we need to know if its selected : [On entry | On Exit]
 actionStra: Maybe String -> Maybe String
 actionStra maybeAction =
     case maybeAction of
@@ -267,9 +268,9 @@ makeStateTranstionStr states =
 makeSystemString: System -> String
 makeSystemString system =
     let
-        startState = Debug.log "StartState" ("[*]-->" ++ (findStateByLineNr 0 system
+        startState = "[*]-->" ++ (findStateByLineNr 0 system
                    |> Maybe.withDefault {name="Empty", transitions=[]}
-                   |> .name) ++ "\n")
+                   |> .name) ++ "\n"
 
     in
     headerStartStr ++ (systemStartStr system.name) ++ startState ++

@@ -236,7 +236,7 @@ makeFsmRowInternal lineNr transition select =
         strCat listOfResults = List.foldl (\prev this-> case (prev,this) of
                                                             (Ok prevStr,Ok val) -> Ok <| prevStr ++ val
                                                             (_,_) -> Err "Unbarable"
-                                          ) (Ok "") (Debug.log "List " (List.reverse listOfResults))
+                                          ) (Ok "") (List.reverse listOfResults)
     in
         case strCat resList of
             Ok out -> out ++ "\n        "

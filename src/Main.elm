@@ -198,7 +198,7 @@ isDisabled fieldIdx special =
                                  _ -> True
 
 
-        lowerSpecial = Debug.log "Special :" (String.toLower special)
+        lowerSpecial = String.toLower special
     in
         if lowerSpecial /= "no special" then
             specialDisable fieldIdx
