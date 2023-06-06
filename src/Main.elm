@@ -15,19 +15,6 @@ import Col.Default as DF
 -- Port to javascript
 port sendDiagram : String -> Cmd msg
 
-
--- type alias TableDataRow = { rowIndex : Int
---                           ,selected: String
---                           ,data : List String
---                           }
-
-
--- type alias Model =
---     { tableData : List TableDataRow
---     ,systemName : String
---     ,mainContent : String
---     }
-
 type Msg
     = UpdateField Int Int String
       | UpdateSelection Int String
@@ -167,12 +154,9 @@ makeMainOutput model =
                           ] []
            ]
 -------------------------------------------------------------------------------
---                                    Old                                    --
+--                                    Main                                    --
 -------------------------------------------------------------------------------
--- Main
--- subscriptions : Model -> Sub Msg
--- subscriptions _ =
---     receiveData ReceivedDataFromJS
+
 
 main =
     Browser.element {

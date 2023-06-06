@@ -8,16 +8,7 @@ import Debug
 import Col.ModelData as MD exposing (Model,TableDataRow,RowData,Selected(..))
 
 
-isEntryStr: List (String,String)
-isEntryStr =
-    [ ("onentry","sml::on_entry<_>")
-    ,("on_entry","sml::on_entry<_>")
-    ,("sml::on_entry<_>","sml::on_entry<_>") ]
 
-isExitStr: List (String, String)
-isExitStr = [("onexit","sml::on_entry<_>")
-            ,("on_exit","sml::on_entry<_>")
-            ,("sml::on_entry<_>","sml::on_entry<_>")]
 
 endStateStr = "X"
 defaultName = "StateMachine"
@@ -180,7 +171,7 @@ handleStateTransition selected stateType =
                                        _ -> Nothing
     in
         case stateType of
-            StartState state -> StartState state
+            StartState state -> StartState <| isMaybeEmptyStr state
             EndState state -> EndState <| noStrForSpecial selected state
             Event event -> Event <| special selected event
             Guard guard -> Guard <| noStrForSpecial selected guard
@@ -221,7 +212,6 @@ makeFsmRowFromModel model =
 -------------------------------------------------------------------------------
 -- Below this point is the construction of the fsmRow (remake)
 -------------------------------------------------------------------------------
-----make_fsm_row : Int -> String -> String -> String -> String -> String -> Result String String
 makeFsmRowInternal: Int -> List StateTransitionType -> Selected -> String
 makeFsmRowInternal lineNr transition select =
     let
