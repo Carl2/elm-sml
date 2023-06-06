@@ -58,6 +58,12 @@ isExitStr = [("onexit","sml::on_entry<_>")
 -------------------------------------------------------------------------------
 --                       Converts into plantuml struct                        --
 -------------------------------------------------------------------------------
+convertModelSystem: MD.Model -> PlantUmlData
+convertModelSystem  mdl =
+    {name = mdl.systemName
+    ,transitionTable =
+    }
+
 convertTable: String -> List (List String) -> PlantUmlData
 convertTable smName tableList =
     {name=smName
@@ -170,6 +176,7 @@ createSystem plantumlData =
     { name = plantumlData.name
     , states = createStateStructure plantumlData.transitionTable
     }
+
 
 -------------------------------------------------------------------------------
 --                             Generates strings                             --
