@@ -44,6 +44,17 @@ isEmpty str =
         "" -> Nothing
         val -> Just val
 
+
+isEntryStr: List (String,String)
+isEntryStr =
+    [ ("onentry","sml::on_entry<_>")
+    ,("on_entry","sml::on_entry<_>")
+    ,("sml::on_entry<_>","sml::on_entry<_>") ]
+
+isExitStr: List (String, String)
+isExitStr = [("onexit","sml::on_entry<_>")
+            ,("on_exit","sml::on_entry<_>")
+            ,("sml::on_entry<_>","sml::on_entry<_>")]
 -------------------------------------------------------------------------------
 --                       Converts into plantuml struct                        --
 -------------------------------------------------------------------------------
@@ -187,11 +198,32 @@ guardStra maybeguard =
         Nothing -> Nothing
         Just guard -> Just (" [" ++ guard ++ "]")
 
+-- Here we need to know if its selected : [On entry | On Exit]
 actionStra: Maybe String -> Maybe String
 actionStra maybeAction =
     case maybeAction of
         Nothing -> Nothing
         Just action -> Just (" / " ++ action)
+
+
+
+
+handleOnSpecial: String -> List (String,String)-> Maybe String
+handleOnSpecial event specialKeys =
+    specialKeys
+        |> List.filter (\(key,val) -> String.toLower event == key  )
+        |> List.head
+        |> Maybe.map Tuple.second
+
+handleEvents: String -> String
+handleEvents event =
+        case handleOnSpecial event isEntryStr of
+            Just entryKey -> entryKey
+            Nothing -> case handleOnSpecial event isExitStr of
+                           Just exitKey -> exitKey
+                           Nothing -> event
+
+
 
 eventStra: Maybe String -> Maybe String
 eventStra maybeEv =
@@ -236,9 +268,9 @@ makeStateTranstionStr states =
 makeSystemString: System -> String
 makeSystemString system =
     let
-        startState = Debug.log "StartState" ("[*]-->" ++ (findStateByLineNr 0 system
+        startState = "[*]-->" ++ (findStateByLineNr 0 system
                    |> Maybe.withDefault {name="Empty", transitions=[]}
-                   |> .name) ++ "\n")
+                   |> .name) ++ "\n"
 
     in
     headerStartStr ++ (systemStartStr system.name) ++ startState ++

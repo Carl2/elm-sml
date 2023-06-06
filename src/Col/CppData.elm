@@ -1,9 +1,14 @@
-module Col.CppData exposing (make_cpp_data,make_fsm_row
-                            ,makeFsmRowTable,defaultName,makeConstexprClass,makeEventHeader,makeMain,smlStr)
+module Col.CppData exposing (make_cpp_data,
+                            defaultName,makeConstexprClass,makeEventHeader
+                            ,makeFsmRowFromModel,makeFsmRowFromData)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import List.Extra as ListExtra
 import Debug
+import Col.ModelData as MD exposing (Model,TableDataRow,RowData,Selected(..))
+
+
+
 
 endStateStr = "X"
 defaultName = "StateMachine"
@@ -36,15 +41,6 @@ struct {0}
 };
 """
 
-smlStr = "sml::sm<"
-
-mainStr="""
-int main(int argc, char *argv[])
-{
-    {0}
-    return EXIT_SUCCESS;
-}
-"""
 
 make_cpp_data: String -> String -> String -> String
 make_cpp_data stateClass modelName str =
@@ -60,73 +56,6 @@ isNotEmpty : String -> Bool
 isNotEmpty str =
     not (String.isEmpty str)
 
-make_fsm_row : Int -> String -> String -> String -> String -> String -> Result String String
-make_fsm_row lineNr start end event guard action =
-    let
-        updateAtIndex idx val lst =
-            List.indexedMap
-                (\i x ->
-                     if i == idx then
-                         val
-                     else
-                         x
-                )
-                lst
-        interpolateString = "{0}   {1}   {2}   {3}   {4}"
-        startWithPre = if lineNr == 0 then
-                           "*" ++ start
-                       else
-                           "," ++ start
-        args = [startWithPre, event, guard, action, end]
-    in
-        if String.isEmpty start then
-            Err "Error: Start state is mandatory"
-        else
-            let
-                args0 = if isNotEmpty end then
-                            updateAtIndex 4 ("= " ++ end) args
-                        else
-                            args
-                args1 = if isNotEmpty event then
-                           updateAtIndex 1 ("+ event<" ++ event ++">") args0
-                       else
-                           args0
-                args2 = if isNotEmpty guard then
-                            updateAtIndex 2 ("[" ++ guard ++"]") args1
-                        else
-                            args1
-                args3 = if isNotEmpty action then
-                            updateAtIndex 3 ("/ (" ++ action ++")") args2
-                        else
-                            args2
-            in
-                Ok (interpolate interpolateString args3)
-
-
-
-makeFsmRow: Int -> List String -> Maybe String
-makeFsmRow lineNr lstStr =
-    case lstStr of
-        [ start, end, ev, guard, action ] ->
-            case make_fsm_row lineNr start end ev guard action of
-                Ok row -> Just row
-                Err err -> Debug.log err Nothing
-        _ -> Nothing
-
-
-
-
-makeFsmRowTable: List (List String ) -> String
-makeFsmRowTable lstLstStr =
-    let
-        --Will create a List (Maybe str)
-        lstMaybeStr = List.indexedMap makeFsmRow lstLstStr
-        -- Now we concatenate the strings (not)
-        concatenate_str maybeStr prev = case maybeStr of
-                                            Just row -> Debug.log ("new row"++row) (row ++ "\n        " ++ prev)
-                                            Nothing -> prev
-    in
-        List.foldr concatenate_str "" lstMaybeStr
 
 
 -------------------------------------------------------------------------------
@@ -141,6 +70,7 @@ makeFsmRowTable lstLstStr =
 
 interpolateStates: String -> String
 interpolateStates state =
+
     "    " ++ (interpolate constexprFmt [state]) ++ "\n"
 
 
@@ -199,20 +129,166 @@ interpolateEvent event =
 --               Make Event header
 --     All the unique events should become a struct {event}
 -------------------------------------------------------------------------------
+
+
 makeEventHeader: List (List String) -> String
 makeEventHeader lstLstStr =
     lstLstStr
         |> eventLst
         |> List.foldl (\ev str ->  (interpolateEvent ev) ++ str ) ""
 
--------------------------------------------------------------------------------
---                             Make main function                            --
--- It would be nice to actually create the functions here too.
---
--------------------------------------------------------------------------------
-makeMain: String ->String
-makeMain name=
+
+
+------------
+-- ReMake --
+------------
+type StateTransitionType
+    = StartState (Maybe String)
+    | EndState (Maybe String)
+    | Event (Maybe String)
+    | Guard (Maybe String)
+    | Action (Maybe String)
+
+isMaybeEmptyStr: Maybe String -> Maybe String
+isMaybeEmptyStr maybeStr =
+    case maybeStr of
+        Just str -> if String.isEmpty str then
+                        Nothing
+                    else
+                        Just str
+        Nothing -> Nothing
+
+handleStateTransition: Selected -> StateTransitionType -> StateTransitionType
+handleStateTransition selected stateType =
     let
-        output = smlStr ++ name ++ "> sm{};"
+        special sel mStr = case selected of
+                               NO -> isMaybeEmptyStr mStr
+                               ON_ENTRY -> Just "sml::on_entry<_>"
+                               ON_EXIT ->  Just "sml::on_exit<_>"
+
+        noStrForSpecial sel mStr = case sel of
+                                       NO ->  isMaybeEmptyStr mStr
+                                       _ -> Nothing
     in
-    interpolate mainStr [output]
+        case stateType of
+            StartState state -> StartState <| isMaybeEmptyStr state
+            EndState state -> EndState <| noStrForSpecial selected state
+            Event event -> Event <| special selected event
+            Guard guard -> Guard <| noStrForSpecial selected guard
+            Action act  -> Action <| isMaybeEmptyStr act
+
+
+
+
+
+
+makeFsmRowFromData: RowData -> Int -> MD.Selected -> String
+makeFsmRowFromData rowData rowIdx selected =
+    let
+
+        resStr = makeFsmRowInternal rowIdx [
+                  handleStateTransition selected <| StartState <| rowData.startState
+                 ,handleStateTransition selected <| EndState <| rowData.endState
+                 ,handleStateTransition selected <| Event <| rowData.event
+                 ,handleStateTransition selected <| Guard <| rowData.guard
+                 ,handleStateTransition selected <| Action <| rowData.action
+                 ] selected
+    in
+        resStr
+
+
+makeFsmFromRowTable: TableDataRow -> String
+makeFsmFromRowTable tblDataRow =
+        makeFsmRowFromData tblDataRow.data  tblDataRow.rowIndex
+            <| Maybe.withDefault NO (MD.convertSelected tblDataRow.selected)
+
+
+
+makeFsmRowFromModel: MD.Model -> String
+makeFsmRowFromModel model =
+    List.map makeFsmFromRowTable model.tableData
+        |> String.concat
+
+-------------------------------------------------------------------------------
+-- Below this point is the construction of the fsmRow (remake)
+-------------------------------------------------------------------------------
+makeFsmRowInternal: Int -> List StateTransitionType -> Selected -> String
+makeFsmRowInternal lineNr transition select =
+    let
+        resList = case transition of
+                      [StartState startState, EndState end, Event ev, Guard guard, Action action] ->
+                          [handleStartState lineNr startState
+                          ,handleEvent ev select
+                          ,handleGuard guard
+                          ,handleAction action
+                          ,handleEnd end]
+                      _ -> [Err "Not all fields are ok"]
+        strCat listOfResults = List.foldl (\prev this-> case (prev,this) of
+                                                            (Ok prevStr,Ok val) -> Ok <| prevStr ++ val
+                                                            (_,_) -> Err "Unbarable"
+                                          ) (Ok "") (List.reverse listOfResults)
+    in
+        case strCat resList of
+            Ok out -> out ++ "\n        "
+            Err err -> Debug.log err ""
+
+
+handleStartState: Int -> Maybe String -> Result String String
+handleStartState lineNr mStr =
+    let
+        pre post = if lineNr == 0 then
+                       "*" ++ post
+                   else
+                       "," ++ post
+    in
+        case mStr of
+            Just str -> Ok (pre str)
+            Nothing -> Err "No Startstate provided"
+
+
+
+handleEvent: Maybe String -> Selected -> Result String String
+handleEvent mStr select=
+    let
+        pre = case mStr of
+                  Nothing -> ""
+                  Just _ -> "+"
+        evenExpandStr str = case str of
+                                Nothing -> ""
+                                Just ev -> "event<" ++ ev ++ ">"
+    in
+       case select of
+           NO -> Ok <| handleSpace 25  (pre ++ (evenExpandStr mStr))
+           _ -> Ok  <| handleSpace 25  (pre ++ Maybe.withDefault "" mStr)
+
+
+
+handleGuard: Maybe String -> Result String String
+handleGuard guard =
+    case guard of
+        Nothing -> Ok <| handleSpace 15 ""
+        Just grd -> Ok <| handleSpace 15 ("[" ++ grd ++"]")
+
+
+handleAction: Maybe String -> Result String String
+handleAction action =
+    case action of
+        Nothing -> Ok <| handleSpace 15 ""
+        Just act -> Ok <| handleSpace 15 "/ (" ++ act ++")"
+
+handleEnd: Maybe String -> Result String String
+handleEnd endState =
+    case endState of
+        Nothing -> Ok <| handleSpace 15 ""
+        Just state -> Ok <| handleSpace 15 ("= "++state)
+        --Just state -> Ok <| "     = " ++ state
+
+
+
+handleSpace: Int -> String -> String
+handleSpace space str =
+    let
+        len = String.length str
+        spaces = String.repeat (space - len) " "
+    in
+        spaces ++ str
