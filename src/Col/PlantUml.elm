@@ -1,7 +1,9 @@
 module Col.PlantUml exposing (convertTable,plantUmlDataToString,PlantUmlData,uniqueStates,makeTransitionStr,createSystem
-                             ,getStateByName,getStateByIndex,findStateByLineNr,makeStateTranstionStr,makeSystemString)
+                             ,getStateByName,getStateByIndex,findStateByLineNr,makeStateTranstionStr,makeSystemString
+                             ,genSystem,transformTR2Transition)
 --import String.Interpolate exposing(interpolate)
 import Set
+import Col.ModelData as MD
 -- import String
 plantUmlUrl = "http://www.plantuml.com/plantuml/uml/~h"
 --test="http://www.plantuml.com/plantuml/uml/~h407374617274756d6c0a416c6963652d3e426f62203a204920616d207573696e67206865780a40656e64756d6c"
@@ -58,11 +60,6 @@ isExitStr = [("onexit","sml::on_entry<_>")
 -------------------------------------------------------------------------------
 --                       Converts into plantuml struct                        --
 -------------------------------------------------------------------------------
-convertModelSystem: MD.Model -> PlantUmlData
-convertModelSystem  mdl =
-    {name = mdl.systemName
-    ,transitionTable =
-    }
 
 convertTable: String -> List (List String) -> PlantUmlData
 convertTable smName tableList =
@@ -177,6 +174,34 @@ createSystem plantumlData =
     , states = createStateStructure plantumlData.transitionTable
     }
 
+-------------------------------------------------------------------------------
+--                            genSystem from Model                           --
+-------------------------------------------------------------------------------
+transformToTransition: MD.RowData -> Int -> Transition
+transformToTransition rd line =
+    { endState = rd.endState
+    , event = rd.event
+    , guard = rd.guard
+    , action = rd.action
+    , lineNr = line
+    }
+
+transformTR2Transition: List MD.TableDataRow -> String -> State
+transformTR2Transition tblRow stateName =
+    let
+        rowDatas state = List.filter (\tableDataRow -> tableDataRow.data.startState == state) tblRow
+        listTransitions state  = List.map (\rowdata -> transformToTransition rowdata.data rowdata.rowIndex) (rowDatas state)
+    in
+    {name = stateName
+    ,transitions = listTransitions <| Just stateName
+    }
+
+-- Name , Unique states, convert function -> System
+genSystem: String -> List String -> (String -> State ) -> System
+genSystem name uniqStates fn =
+    {name = name
+    , states  = List.map fn uniqStates
+    }
 
 -------------------------------------------------------------------------------
 --                             Generates strings                             --

@@ -1,9 +1,10 @@
-module NewModel exposing (..)
+module NewModel exposing (testPlantuml,testExtract)
 
 import Col.ModelData exposing (..)
 import Expect
 import Test exposing (..)
 import Col.CppData exposing(..)
+import Col.PlantUml as PU
 
 testModel : Model
 testModel =
@@ -65,8 +66,8 @@ testModel =
     }
 
 
-tests : Test
-tests =
+testExtract : Test
+testExtract =
     describe "extractRowData"
         [ test "it should replace Nothing with an empty string" <|
             \_ ->
@@ -177,7 +178,7 @@ tests =
                     str = makeFsmRowFromData rowData 0 NO
                 in
 
-                    str |> Expect.equal "*startState5     +event<event5>     = endState5\n        "
+                    str |> Expect.equal "*startState5           +event<event5>                                  = endState5\n        "
         ,test "Test with 2" <|
             \_ ->
                 let
@@ -207,6 +208,63 @@ tests =
                              , systemName = "TestSystem"
                              , mainContent = ""
                              }
+                    expected = "*startState1                                [guard1]                   = endState1\n        ,startState2           +event<event2>       [guard2]            / (action2)               \n        "
                 in
-                    makeFsmRowFromModel mymodel |> Expect.equal ""
+                    makeFsmRowFromModel mymodel |> Expect.equal expected
+        ,test "Test getting all unique states" <|
+            \_ ->
+                let
+
+                    myModel = {testModel | tableData = testModel.tableData ++ testModel.tableData}
+                    listStates = getAllStates testModel
+                in
+                    listStates |> Expect.equal ["endState1","endState3","endState5","startState1","startState2","startState3","startState4","startState5"]
         ]
+
+testPlantuml: Test
+testPlantuml = describe "PlantUml using new model"
+        [test "Testing the new model transformation" <|
+             \_ ->
+             let
+                 uniqueStates = getAllStates testModel
+                 newSystem = PU.genSystem "System" uniqueStates  <| PU.transformTR2Transition testModel.tableData
+                 expectedStates = [{ name = "endState1"
+                                   , transitions = [] }
+                                  ,{ name = "endState3"
+                                   , transitions = [] }
+                                  ,{ name = "endState5"
+                                   , transitions = [] }
+                                  ,{ name = "startState1"
+                                   , transitions = [{ action = Nothing
+                                                    , endState = Just "endState1"
+                                                    , event = Nothing
+                                                    , guard = Just "guard1"
+                                                    , lineNr = 1 }] }
+                                  ,{ name = "startState2"
+                                   , transitions = [{ action = Just "action2"
+                                                    , endState = Nothing
+                                                    , event = Just "event2"
+                                                    , guard = Nothing
+                                                    , lineNr = 2 }] }
+                                  ,{ name = "startState3"
+                                   , transitions = [{ action = Just "action3"
+                                                    , endState = Just "endState3"
+                                                    , event = Nothing
+                                                    , guard = Nothing
+                                                    , lineNr = 3 }] }
+                                  ,{ name = "startState4"
+                                   , transitions = [{ action = Nothing
+                                                    , endState = Nothing
+                                                    , event = Just "event4"
+                                                    , guard = Just "guard4"
+                                                    , lineNr = 4 }] }
+                                  ,{ name = "startState5"
+                                   , transitions = [{ action = Nothing
+                                                    , endState = Just "endState5"
+                                                    , event = Just "event5"
+                                                    , guard = Nothing
+                                                    , lineNr = 5 }] }]
+             in
+
+                 newSystem |> Expect.equal {name = "System", states = expectedStates}
+             ]

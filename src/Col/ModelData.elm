@@ -6,8 +6,10 @@ module Col.ModelData exposing (Model,TableDataRow,RowData,Selected(..)
                                    ,updateDataAtIndex
                                    ,updateSelected
                                    ,convertSelected
+                                   ,getAllStates
                               )
 import Maybe
+import Set
 import Col.Default as DF
 
 
@@ -127,3 +129,19 @@ updateSelected model rowIndex newValue =
                 row
     in
     { model | tableData = List.map updateRow model.tableData }
+
+--
+-------------------------------------------------------------------------------
+--             Get All state names (unique)
+-------------------------------------------------------------------------------
+getAllStates: Model -> List String
+getAllStates mdl =
+    let
+        allRows = List.map .data mdl.tableData
+        maybeStates = (List.map .startState allRows) ++ (List.map .endState allRows)
+        onlyValidStates states = List.filter (\maybeState -> case maybeState of
+                                                                 Nothing -> False
+                                                                 Just state -> True) states
+        validStrings states = List.map (\state -> Maybe.withDefault "" state) <| onlyValidStates states
+    in
+        Set.toList <| Set.fromList  <|validStrings maybeStates
