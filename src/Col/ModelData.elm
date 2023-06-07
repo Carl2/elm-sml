@@ -12,6 +12,7 @@ import Maybe
 import Set
 import Col.Default as DF
 
+invalidStateNames = ["x"]
 
 type alias RowData =
     { startState : Maybe String
@@ -134,14 +135,20 @@ updateSelected model rowIndex newValue =
 -------------------------------------------------------------------------------
 --             Get All state names (unique)
 -------------------------------------------------------------------------------
+filterOutInvalids: String -> List String -> Bool
+filterOutInvalids state lstInvalids =
+    not <| List.member state lstInvalids
+
+
 getAllStates: Model -> List String
 getAllStates mdl =
     let
         allRows = List.map .data mdl.tableData
         maybeStates = (List.map .startState allRows) ++ (List.map .endState allRows)
-        onlyValidStates states = List.filter (\maybeState -> case maybeState of
-                                                                 Nothing -> False
-                                                                 Just state -> True) states
+        onlyValidStates states = List.filter
+                                 (\maybeState -> case maybeState of
+                                                     Nothing -> False
+                                                     Just state -> filterOutInvalids state invalidStateNames) states
         validStrings states = List.map (\state -> Maybe.withDefault "" state) <| onlyValidStates states
     in
         Set.toList <| Set.fromList  <|validStrings maybeStates

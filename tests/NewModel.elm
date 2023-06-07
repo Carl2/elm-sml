@@ -214,8 +214,18 @@ testExtract =
         ,test "Test getting all unique states" <|
             \_ ->
                 let
+                    newTableData = { rowIndex = 6
+                                   , selected = "selected"
+                                   , data =
+                                         { startState = Just "startState1"
+                                         , endState = Just "X"
+                                         , event = Nothing
+                                         , guard = Just "guard1"
+                                         , action = Nothing
+                                         }
+                                   }
 
-                    myModel = {testModel | tableData = testModel.tableData ++ testModel.tableData}
+                    myModel = {testModel | tableData = newTableData ::  testModel.tableData ++ testModel.tableData}
                     listStates = getAllStates testModel
                 in
                     listStates |> Expect.equal ["endState1","endState3","endState5","startState1","startState2","startState3","startState4","startState5"]

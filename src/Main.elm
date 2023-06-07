@@ -108,16 +108,14 @@ makeSystemNameInput model =
 -------------------------------------------------------------------------------
 --                     MakeUml string diagram from model                     --
 -------------------------------------------------------------------------------
+
 createPlantUmlDiagram: Model -> String
 createPlantUmlDiagram mdl =
     let
-        data = convertToStringList mdl
+        uniqueStates = MD.getAllStates mdl
+        sys =PU.genSystem mdl.systemName uniqueStates  <| PU.transformTR2Transition mdl.tableData
     in
-        data
-        |> PU.convertTable mdl.systemName
-        |> PU.createSystem
-        |> PU.makeSystemString
-
+        PU.makeSystemString sys
 -------------------------------------------------------------------------------
 --                              Make code output                             --
 -------------------------------------------------------------------------------
