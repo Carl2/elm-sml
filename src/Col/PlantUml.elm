@@ -1,7 +1,9 @@
 module Col.PlantUml exposing (convertTable,plantUmlDataToString,PlantUmlData,uniqueStates,makeTransitionStr,createSystem
-                             ,getStateByName,getStateByIndex,findStateByLineNr,makeStateTranstionStr,makeSystemString)
+                             ,getStateByName,getStateByIndex,findStateByLineNr,makeStateTranstionStr,makeSystemString
+                             ,genSystem,transformTR2Transition)
 --import String.Interpolate exposing(interpolate)
 import Set
+import Col.ModelData as MD
 -- import String
 plantUmlUrl = "http://www.plantuml.com/plantuml/uml/~h"
 --test="http://www.plantuml.com/plantuml/uml/~h407374617274756d6c0a416c6963652d3e426f62203a204920616d207573696e67206865780a40656e64756d6c"
@@ -27,6 +29,7 @@ type alias Transition =
     ,guard: Maybe String
     ,action: Maybe String
     ,lineNr: Int
+    ,selected: MD.Selected
     }
 
 type alias State =
@@ -58,6 +61,7 @@ isExitStr = [("onexit","sml::on_entry<_>")
 -------------------------------------------------------------------------------
 --                       Converts into plantuml struct                        --
 -------------------------------------------------------------------------------
+
 convertTable: String -> List (List String) -> PlantUmlData
 convertTable smName tableList =
     {name=smName
@@ -151,6 +155,7 @@ convertTransitionRowToTransition transRows =
                                  , guard = isEmpty row.guard
                                  , action = isEmpty row.action
                                  ,lineNr = row.lineNr
+                                 ,selected = MD.NO
                                  }
     in
         List.map convertToTransition transRows
@@ -169,6 +174,40 @@ createSystem: PlantUmlData -> System
 createSystem plantumlData =
     { name = plantumlData.name
     , states = createStateStructure plantumlData.transitionTable
+    }
+
+-------------------------------------------------------------------------------
+--                            genSystem from Model                           --
+-------------------------------------------------------------------------------
+transformToTransition: MD.RowData -> Int -> MD.Selected -> Transition
+transformToTransition rd line select=
+    { endState = rd.endState
+    , event = rd.event
+    , guard = rd.guard
+    , action = rd.action
+    , lineNr = line
+    , selected = select
+    }
+
+transformTR2Transition: List MD.TableDataRow -> String -> State
+transformTR2Transition tblRow stateName =
+    let
+        rowDatas state = List.filter (\tableDataRow -> tableDataRow.data.startState == state) tblRow
+        listTransitions state  = List.map (\rowdata ->
+                                               let
+                                                   sel = Maybe.withDefault MD.NO <| MD.convertSelected rowdata.selected
+                                               in
+                                               transformToTransition rowdata.data rowdata.rowIndex sel) (rowDatas state)
+    in
+    {name = stateName
+    ,transitions = listTransitions <| Just stateName
+    }
+
+-- Name , Unique states, convert function -> System
+genSystem: String -> List String -> (String -> State ) -> System
+genSystem name uniqStates fn =
+    {name = name
+    , states  = List.map fn uniqStates
     }
 
 -------------------------------------------------------------------------------
@@ -199,11 +238,16 @@ guardStra maybeguard =
         Just guard -> Just (" [" ++ guard ++ "]")
 
 -- Here we need to know if its selected : [On entry | On Exit]
-actionStra: Maybe String -> Maybe String
-actionStra maybeAction =
+actionStra: Maybe String -> MD.Selected -> Maybe String
+actionStra maybeAction selected =
     case maybeAction of
         Nothing -> Nothing
-        Just action -> Just (" / " ++ action)
+        Just action -> case selected of
+                           MD.NO -> Just (" / " ++ action)
+                           MD.ON_ENTRY -> Just ("on_entry / " ++ action)
+                           MD.ON_EXIT -> Just ("on_exit / " ++ action)
+
+
 
 
 
@@ -236,7 +280,7 @@ systemAttributeStr tr =
     let
         ev = Maybe.withDefault ""  (eventStra tr.event)
         guard = Maybe.withDefault "" (guardStra tr.guard)
-        action = Maybe.withDefault "" (actionStra tr.action)
+        action = Maybe.withDefault "" (actionStra tr.action tr.selected)
     in
     case (ev,guard,action) of
         ("","","") -> ""
