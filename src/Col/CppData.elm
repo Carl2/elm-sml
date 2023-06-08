@@ -258,37 +258,40 @@ handleEvent mStr select=
                                 Just ev -> "event<" ++ ev ++ ">"
     in
        case select of
-           NO -> Ok <| handleSpace 25  (pre ++ (evenExpandStr mStr))
-           _ -> Ok  <| handleSpace 25  (pre ++ Maybe.withDefault "" mStr)
+           NO -> Ok <| handleSpace 25  RIGHT (pre ++ (evenExpandStr mStr))
+           _ -> Ok  <| handleSpace 25  RIGHT (pre ++ Maybe.withDefault "" mStr)
 
 
 
 handleGuard: Maybe String -> Result String String
 handleGuard guard =
     case guard of
-        Nothing -> Ok <| handleSpace 15 ""
-        Just grd -> Ok <| handleSpace 15 ("[" ++ grd ++"]")
+        Nothing -> Ok <| handleSpace 15 RIGHT ""
+        Just grd -> Ok <| handleSpace 15 RIGHT ("[" ++ grd ++"]")
 
 
 handleAction: Maybe String -> Result String String
 handleAction action =
     case action of
-        Nothing -> Ok <| handleSpace 15 ""
-        Just act -> Ok <| handleSpace 15 "/ (" ++ act ++")"
+        Nothing -> Ok <| handleSpace 15 RIGHT ""
+        Just act -> Ok <| handleSpace 15 RIGHT "/ (" ++ act ++")"
 
 handleEnd: Maybe String -> Result String String
 handleEnd endState =
     case endState of
-        Nothing -> Ok <| handleSpace 15 ""
-        Just state -> Ok <| handleSpace 15 ("= "++state)
+        Nothing -> Ok <| handleSpace 15 RIGHT ""
+        Just state -> Ok <| handleSpace 15 RIGHT ("= "++state)
         --Just state -> Ok <| "     = " ++ state
 
+type DIRECTION = LEFT
+               | RIGHT
 
-
-handleSpace: Int -> String -> String
-handleSpace space str =
+handleSpace: Int -> DIRECTION -> String -> String
+handleSpace space dir str =
     let
         len = String.length str
         spaces = String.repeat (space - len) " "
     in
-        spaces ++ str
+        case dir of
+            LEFT -> str ++ spaces
+            RIGHT -> spaces ++ str
