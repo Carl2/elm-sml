@@ -3,11 +3,7 @@
 #+title: FSM
 #+filetags: elm programming language web
 
-# #+HTML_HEAD: <link href="extra/prism.css" rel="stylesheet" />
-
-# #+HTML_HEAD: <link href="extra/style.css" rel="stylesheet" />
-# #+HTML_HEAD: <script src="extra/prism.js"></script>
-
+#+HTML_HEAD: <link href="extra/prism.css" rel="stylesheet" />
 
 For more information of how *SML* works,checkout [[https://github.com/boost-ext/sml][link sml]].
 
@@ -17,25 +13,59 @@ For more information of how *SML* works,checkout [[https://github.com/boost-ext/
 <div id="encoded-data"></div>
 <img id="plantuml-img"></div>
 
-<script src="plantuml-encoder/dist/plantuml-encoder.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/plantuml-encoder@1.4.0/dist/plantuml-encoder.min.js"></script>
+<script src="extra/prism.js"></script>
 <script src="elm.js"></script>
-  <script>
+<script>
     var app = Elm.Main.init({
       node: document.getElementById("elm-app")
     });
 
-
-    app.ports.sendDiagram.subscribe(function(data) {
-    console.log("Data from Elm: ", data);
-
-    var plantumlEncoder = window.plantumlEncoder;
-    var encoded_data = plantumlEncoder.encode(data);
-    <!-- document.getElementById('encoded-data').innerText = 'encoded: ' + encoded_data; -->
-
-    var baseUrl = 'http://www.plantuml.com/plantuml/img/';
-    var url = baseUrl + encoded_data;
-    document.getElementById('plantuml-img').src = url
+    // Port handler for syntax highlighting
+    // Debounce to avoid excessive calls and use highlightElement instead of highlightAll
+    var highlightTimeout = null;
+    app.ports.highlightCode.subscribe(function() {
+        // Clear any pending highlight
+        if (highlightTimeout) {
+            clearTimeout(highlightTimeout);
+        }
+        // Debounce: wait 300ms after last keystroke before highlighting
+        highlightTimeout = setTimeout(function() {
+            // Get the code elements
+            var cppOutput = document.getElementById('cpp-output');
+            var eventOutput = document.getElementById('event-output');
+            
+            // Re-highlight by getting the text content and re-setting it
+            // This prevents Prism from accumulating highlighted content
+            if (cppOutput) {
+                var cppText = cppOutput.textContent;
+                cppOutput.innerHTML = cppText;
+                Prism.highlightElement(cppOutput);
+            }
+            if (eventOutput) {
+                var eventText = eventOutput.textContent;
+                eventOutput.innerHTML = eventText;
+                Prism.highlightElement(eventOutput);
+            }
+        }, 300);
     });
-  </script>
+
+    // Port handler for PlantUML diagram
+    app.ports.sendDiagram.subscribe(function(data) {
+        console.log("Data from Elm: ", data);
+
+        var plantumlEncoder = window.plantumlEncoder;
+        var encoded_data = plantumlEncoder.encode(data);
+
+        var baseUrl = 'http://www.plantuml.com/plantuml/img/';
+        var url = baseUrl + encoded_data;
+        document.getElementById('plantuml-img').src = url;
+    });
+
+    // Initial highlighting after page load
+    document.addEventListener('DOMContentLoaded', function() {
+        Prism.highlightAll();
+    });
+</script>
 
 #+end_export

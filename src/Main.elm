@@ -5,6 +5,7 @@ port module Main exposing (main, update,  Msg(..))
 import Browser
 import Col.CppData as Cpp
 import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,span,img,option,select)
+import Html.Keyed as Keyed
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput,onClick)
 import Col.PlantUml as PU
@@ -12,8 +13,9 @@ import Col.ModelData as MD exposing(Model,TableDataRow,RowData,convertToStringLi
 import Col.Default as DF
 
 
--- Port to javascript
+-- Ports to javascript
 port sendDiagram : String -> Cmd msg
+port highlightCode : () -> Cmd msg
 
 type Msg
     = UpdateField Int Int String
@@ -47,7 +49,7 @@ update msg model =
                         )
                         tableRows
             in
-                ({ model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData }, Cmd.none)
+                ({ model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData }, highlightCode ())
 
         UpdateMachineName str -> updateMachineName str model
         AddRow ->
@@ -55,15 +57,15 @@ update msg model =
                 newIndex = List.length model.tableData
                 newRow =  { rowIndex = newIndex, selected = "No Special", data = MD.defaultRowData }
             in
-                ({model | tableData = model.tableData ++ [newRow]}, Cmd.none)
+                ({model | tableData = model.tableData ++ [newRow]}, highlightCode ())
         DelRow ->
-            ({model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }, Cmd.none)
+            ({model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }, highlightCode ())
         MakeUmlDiagram ->
             (model, sendDiagram <| createPlantUmlDiagram model)
         UpdateMainContent str ->
             ({model | mainContent = str}, Cmd.none )
         UpdateSelection rowIdx select ->
-            (MD.updateSelected model rowIdx select,Cmd.none)
+            (MD.updateSelected model rowIdx select, highlightCode ())
 
 
 
@@ -79,7 +81,7 @@ updateMachineName name model =
                    }
 
     in
-    (newModel, Cmd.none)
+    (newModel, highlightCode ())
 
 view : Model -> Html Msg
 view model =
@@ -125,22 +127,35 @@ makeCodeOutput model =
         smlClass = Cpp.makeConstexprClass <|  convertToStringList model
         cppStr = Cpp.makeFsmRowFromModel model
                |> Cpp.make_cpp_data  smlClass model.systemName
-               |> text
 
     in
-        pre [id "language-cpp"] [code [class "language-cpp"
-                                      , style "width" "940px"  -- set width
-                                      , style "height" "200px"  -- set height
-                                      ] [cppStr]] --[cppStr]
+        div [class "code-toolbar"]
+            [Keyed.node "pre" [class "line-numbers"]
+                 [(cppStr, code [class "language-cpp"
+                       , id "cpp-output"
+                       , style "width" "940px"
+                       , style "height" "auto"
+                       , style "max-height" "400px"
+                       , style "overflow" "auto"
+                       ] [text cppStr])
+                 ]
+            ]
 
 makeEventOutput: Model -> Html msg
 makeEventOutput model =
-    div [] [pre [] [code [style "width" "940px"  -- set width
-                         , style "height" "200px"  -- set height
-                         ]
-                        [text "// This could be placed in a header file"
-                        , text (Cpp.makeEventHeader <| convertToStringList model)
-                        ] ]]
+    let
+        eventCode = "// This could be placed in a header file\n" 
+                    ++ (Cpp.makeEventHeader <| convertToStringList model)
+    in
+    div [class "code-toolbar"]
+        [Keyed.node "pre" [class "line-numbers"]
+             [(eventCode, code [class "language-cpp"
+                   , id "event-output"
+                   , style "width" "940px"
+                   , style "height" "auto"
+                   ] [text eventCode])
+             ]
+        ]
 
 makeMainOutput: Model -> Html Msg
 makeMainOutput model =
