@@ -258,11 +258,9 @@ forEachField rowIndex tableDataRow =
 makeModelTable: Model -> List (Html Msg)
 makeModelTable model =
     let
-
-
         forEachRow tableDatas = List.indexedMap (\rowIndex tableData -> tr [] (forEachField rowIndex tableData) ) tableDatas
     in
-        (List.append makeHeader (forEachRow model.tableData))
+        makeHeader ++ [Html.tbody [] (forEachRow model.tableData)]
 
 
 
@@ -272,24 +270,28 @@ makeHeader: List (Html msg)
 makeHeader =
     [
      Html.caption [] [Html.text "Generation of Statemachine"]
-    ,Html.th [style "background-color" "black", style "color" "white"] [
-           Html.text "Start State"
-          ]
-    ,Html.th [style "background-color" "black", style "color" "white"] [
-           Html.text "End State"
-          ]
-    ,Html.th [style "background-color" "blue", style "color" "white"] [
-           Html.text "Event"
-          ]
-    ,Html.th [style "background-color" "red", style "color" "white"] [
-           Html.text "Guard"
-          ]
-    ,Html.th [style "background-color" "green", style "color" "white"] [
-           Html.text "Action"
-          ]
-    ,Html.th [style "background-color" "white", style "color" "black"] [
-          Html.text "Special"
-         ]
+    ,Html.thead [] [
+         Html.tr [] [
+             Html.th [style "background-color" "black", style "color" "white"] [
+                   Html.text "Start State"
+                  ]
+            ,Html.th [style "background-color" "black", style "color" "white"] [
+                   Html.text "End State"
+                  ]
+            ,Html.th [style "background-color" "blue", style "color" "white"] [
+                   Html.text "Event"
+                  ]
+            ,Html.th [style "background-color" "red", style "color" "white"] [
+                   Html.text "Guard"
+                  ]
+            ,Html.th [style "background-color" "green", style "color" "white"] [
+                   Html.text "Action"
+                  ]
+            ,Html.th [style "background-color" "#374151", style "color" "white"] [
+                  Html.text "Special"
+                 ]
+            ]
+        ]
     ]
 
 
