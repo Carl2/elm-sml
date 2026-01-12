@@ -66,12 +66,35 @@ For more information of how *SML* works,checkout [[https://github.com/boost-ext/
     app.ports.openCompilerExplorer.subscribe(function(code) {
         console.log("Opening Compiler Explorer with code");
         
+        // Replace local boost/sml.hpp include with raw GitHub URL for Godbolt
+        // Using a more flexible regex to handle potential whitespace variations
+        var godboltCode = code.replace(
+            /#include\s*<boost\/sml\.hpp>/g,
+            '#include <https://raw.githubusercontent.com/boost-ext/sml/master/include/boost/sml.hpp>'
+        );
+        
+        // Debug: Check if replacement worked
+        if (code === godboltCode) {
+            console.log("WARNING: No replacement made! Looking for '#include <boost/sml.hpp>' in code...");
+            console.log("Code contains 'boost/sml.hpp':", code.indexOf('boost/sml.hpp') !== -1);
+            console.log("Code contains '#include':", code.indexOf('#include') !== -1);
+            // Try to find what the include line looks like
+            var lines = code.split('\n');
+            lines.forEach(function(line, i) {
+                if (line.indexOf('include') !== -1) {
+                    console.log("Line " + i + " with include:", JSON.stringify(line));
+                }
+            });
+        } else {
+            console.log("Replacement successful!");
+        }
+        
         // Create the clientstate object for Compiler Explorer
         var clientState = {
             sessions: [{
                 id: 1,
                 language: "c++",
-                source: code,
+                source: godboltCode,
                 compilers: [{
                     id: "clang_trunk",
                     options: "-std=c++20"
