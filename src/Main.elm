@@ -16,6 +16,7 @@ import Col.Default as DF
 -- Ports to javascript
 port sendDiagram : String -> Cmd msg
 port highlightCode : () -> Cmd msg
+port openCompilerExplorer : String -> Cmd msg
 
 type Msg
     = UpdateField Int Int String
@@ -25,6 +26,7 @@ type Msg
       | DelRow
       | MakeUmlDiagram
       | UpdateMainContent String
+      | OpenCompilerExplorer
 
 
 
@@ -66,6 +68,8 @@ update msg model =
             ({model | mainContent = str}, Cmd.none )
         UpdateSelection rowIdx select ->
             (MD.updateSelected model rowIdx select, highlightCode ())
+        OpenCompilerExplorer ->
+            (model, openCompilerExplorer (generateFullCode model))
 
 
 
@@ -94,7 +98,7 @@ view model =
         ,makeEventOutput model
         ,makeMainOutput model
         ,button [onClick MakeUmlDiagram] [text "Make Uml Diagram" ]
-
+        ,button [onClick OpenCompilerExplorer, style "margin-left" "10px"] [text "Compiler Explorer" ]
         ]
 
 
@@ -118,6 +122,20 @@ createPlantUmlDiagram mdl =
         sys =PU.genSystem mdl.systemName uniqueStates  <| PU.transformTR2Transition mdl.tableData
     in
         PU.makeSystemString sys
+
+-------------------------------------------------------------------------------
+--                    Generate full code for Compiler Explorer               --
+-------------------------------------------------------------------------------
+generateFullCode: Model -> String
+generateFullCode model =
+    let
+        eventHeader = Cpp.makeEventHeader <| convertToStringList model
+        smlClass = Cpp.makeConstexprClass <| convertToStringList model
+        cppStr = Cpp.makeFsmRowFromModel model
+               |> Cpp.make_cpp_data smlClass model.systemName
+        mainContent = model.mainContent
+    in
+        eventHeader ++ "\n" ++ cppStr ++ "\n" ++ mainContent
 -------------------------------------------------------------------------------
 --                              Make code output                             --
 -------------------------------------------------------------------------------

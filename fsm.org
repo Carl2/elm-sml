@@ -62,6 +62,41 @@ For more information of how *SML* works,checkout [[https://github.com/boost-ext/
         document.getElementById('plantuml-img').src = url;
     });
 
+    // Port handler for Compiler Explorer (godbolt.org)
+    app.ports.openCompilerExplorer.subscribe(function(code) {
+        console.log("Opening Compiler Explorer with code");
+        
+        // Create the clientstate object for Compiler Explorer
+        var clientState = {
+            sessions: [{
+                id: 1,
+                language: "c++",
+                source: code,
+                compilers: [{
+                    id: "clang_trunk",
+                    options: "-std=c++20"
+                }],
+                executors: [{
+                    compiler: {
+                        id: "clang_trunk",
+                        options: "-std=c++20"
+                    }
+                }]
+            }]
+        };
+        
+        // Base64 encode the clientstate
+        var jsonString = JSON.stringify(clientState);
+        var base64 = btoa(unescape(encodeURIComponent(jsonString)));
+        
+        // URL-safe base64
+        var urlSafeBase64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+        
+        // Open Compiler Explorer in a new tab
+        var url = 'https://godbolt.org/clientstate/' + urlSafeBase64;
+        window.open(url, '_blank');
+    });
+
     // Initial highlighting after page load
     document.addEventListener('DOMContentLoaded', function() {
         Prism.highlightAll();
