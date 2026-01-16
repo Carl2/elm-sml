@@ -87,6 +87,19 @@
             imgElement.style.display = 'block';
         });
 
+        // Port handler for file download
+        app.ports.downloadFile.subscribe(function(data) {
+            var blob = new Blob([data.content], { type: 'text/plain' });
+            var url = URL.createObjectURL(blob);
+            var a = document.createElement('a');
+            a.href = url;
+            a.download = data.filename;
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+            URL.revokeObjectURL(url);
+        });
+
         // Port handler for Compiler Explorer (godbolt.org)
         app.ports.openCompilerExplorer.subscribe(function(code) {
             console.log("Opening Compiler Explorer with code");

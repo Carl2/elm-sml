@@ -17,6 +17,7 @@ import Col.Default as DF
 port sendDiagram : String -> Cmd msg
 port highlightCode : () -> Cmd msg
 port openCompilerExplorer : String -> Cmd msg
+port downloadFile : { filename : String, content : String } -> Cmd msg
 
 type Msg
     = UpdateField Int Int String
@@ -27,6 +28,7 @@ type Msg
       | MakeUmlDiagram
       | UpdateMainContent String
       | OpenCompilerExplorer
+      | DownloadCode
 
 
 
@@ -71,6 +73,12 @@ update msg model =
         OpenCompilerExplorer ->
             (model, openCompilerExplorer (generateFullCode model))
 
+        DownloadCode ->
+            (model, downloadFile 
+                { filename = model.systemName ++ ".hpp"
+                , content = generateFullCode model
+                })
+
 
 
 
@@ -99,6 +107,7 @@ view model =
         ,makeMainOutput model
         ,button [onClick MakeUmlDiagram] [text "Make Uml Diagram" ]
         ,button [onClick OpenCompilerExplorer, style "margin-left" "10px"] [text "Compiler Explorer" ]
+        ,button [onClick DownloadCode, style "margin-left" "10px"] [text "Download Code" ]
         ]
 
 
@@ -135,7 +144,7 @@ generateFullCode model =
                |> Cpp.make_cpp_data smlClass model.systemName
         mainContent = model.mainContent
     in
-        eventHeader ++ "\n" ++ cppStr ++ "\n" ++ mainContent
+        Cpp.includeHeader ++ eventHeader ++ "\n" ++ cppStr ++ "\n" ++ mainContent
 -------------------------------------------------------------------------------
 --                              Make code output                             --
 -------------------------------------------------------------------------------
@@ -149,13 +158,13 @@ makeCodeOutput model =
     in
         div [class "code-toolbar"]
             [Keyed.node "pre" [class "line-numbers"]
-                 [(cppStr, code [class "language-cpp"
+                 [(Cpp.includeHeader ++ cppStr, code [class "language-cpp"
                        , id "cpp-output"
                        , style "width" "940px"
                        , style "height" "auto"
                        , style "max-height" "400px"
                        , style "overflow" "auto"
-                       ] [text cppStr])
+                       ] [text (Cpp.includeHeader ++ cppStr)])
                  ]
             ]
 

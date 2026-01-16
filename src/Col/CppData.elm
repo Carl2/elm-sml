@@ -1,4 +1,4 @@
-module Col.CppData exposing (make_cpp_data,
+module Col.CppData exposing (make_cpp_data, includeHeader,
                             defaultName,makeConstexprClass,makeEventHeader
                             ,makeFsmRowFromModel,makeFsmRowFromData)
 import String.Interpolate exposing(interpolate)
@@ -25,14 +25,16 @@ guardFmt ="""
 auto {0} = [](const auto& event) { return true; };
 """
 
-cpp_data: String
-cpp_data = """
-#include <boost/sml.hpp>
-
-// Create a header file with {0}.hpp for example
-// This was created with help of elm-sml (by Carl Olsen)
+includeHeader : String
+includeHeader = """#include <boost/sml.hpp>
 
 namespace sml = boost::sml;
+"""
+
+cpp_data: String
+cpp_data = """
+// Create a header file with {0}.hpp for example
+// This was created with help of elm-sml (by Carl Olsen)
 
 struct {0}
 {
