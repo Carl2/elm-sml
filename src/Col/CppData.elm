@@ -17,6 +17,14 @@ eventFmt ="""
 struct {0} {};
 """
 
+actionFmt ="""
+auto {0} = [](const auto& event) {};
+"""
+
+guardFmt ="""
+auto {0} = [](const auto& event) { return true; };
+"""
+
 cpp_data: String
 cpp_data = """
 #include <boost/sml.hpp>
@@ -133,9 +141,62 @@ interpolateEvent event =
 
 makeEventHeader: List (List String) -> String
 makeEventHeader lstLstStr =
-    lstLstStr
-        |> eventLst
-        |> List.foldl (\ev str ->  (interpolateEvent ev) ++ str ) ""
+    let
+        events = lstLstStr
+            |> eventLst
+            |> List.foldl (\ev str ->  (interpolateEvent ev) ++ str ) ""
+        guards = lstLstStr
+            |> guardLst
+            |> List.foldl (\grd str -> (interpolateGuard grd) ++ str) ""
+        actions = lstLstStr
+            |> actionLst
+            |> List.foldl (\act str -> (interpolateAction act) ++ str) ""
+    in
+        events ++ guards ++ actions
+
+
+getActionFromLst : List String -> String
+getActionFromLst lst = 
+    case lst of
+        [_,_,_,_,act] -> act
+        _ -> ""
+
+
+actionLst: List (List String) -> List String
+actionLst listOflist = 
+    listOflist
+        |> List.foldl (\row prevAction -> (getActionFromLst row) :: prevAction) []
+        |> ListExtra.unique
+
+
+interpolateAction: String -> String
+interpolateAction action =
+    if not (String.isEmpty action) then
+        interpolate actionFmt [action]
+    else
+        ""
+
+
+getGuardFromLst : List String -> String
+getGuardFromLst lst = 
+    case lst of
+        [_,_,_,grd,_] -> grd
+        _ -> ""
+
+
+guardLst: List (List String) -> List String
+guardLst listOflist = 
+    listOflist
+        |> List.foldl (\row prevGuard -> (getGuardFromLst row) :: prevGuard) []
+        |> ListExtra.unique
+
+
+interpolateGuard: String -> String
+interpolateGuard guard =
+    if not (String.isEmpty guard) then
+        interpolate guardFmt [guard]
+    else
+        ""
 
 
 
