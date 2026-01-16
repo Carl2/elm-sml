@@ -1,0 +1,625 @@
+/* ==========================================================================
+   FSM State Machine Generator - Stylesheet
+   A clean, modern UI for the Boost.SML code generator
+   ========================================================================== */
+
+/* --------------------------------------------------------------------------
+   CSS Variables (Design Tokens)
+   -------------------------------------------------------------------------- */
+:root {
+    /* Colors */
+    --color-primary: #4f46e5;        /* Indigo */
+    --color-primary-dark: #4338ca;
+    --color-primary-light: #818cf8;
+    --color-secondary: #059669;       /* Emerald */
+    --color-secondary-dark: #047857;
+    --color-danger: #dc2626;
+    --color-danger-dark: #b91c1c;
+    --color-warning: #f59e0b;
+    
+    /* Grays */
+    --color-gray-50: #f9fafb;
+    --color-gray-100: #f3f4f6;
+    --color-gray-200: #e5e7eb;
+    --color-gray-300: #d1d5db;
+    --color-gray-400: #9ca3af;
+    --color-gray-500: #6b7280;
+    --color-gray-600: #4b5563;
+    --color-gray-700: #374151;
+    --color-gray-800: #1f2937;
+    --color-gray-900: #111827;
+    
+    /* Semantic colors for table headers */
+    --color-state: #1e293b;          /* Slate for states */
+    --color-event: #1d4ed8;          /* Blue for events */
+    --color-guard: #b91c1c;          /* Red for guards */
+    --color-action: #047857;         /* Green for actions */
+    
+    /* Spacing */
+    --spacing-xs: 0.25rem;
+    --spacing-sm: 0.5rem;
+    --spacing-md: 1rem;
+    --spacing-lg: 1.5rem;
+    --spacing-xl: 2rem;
+    --spacing-2xl: 3rem;
+    
+    /* Border radius */
+    --radius-sm: 0.25rem;
+    --radius-md: 0.5rem;
+    --radius-lg: 0.75rem;
+    --radius-xl: 1rem;
+    
+    /* Shadows */
+    --shadow-sm: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+    --shadow-md: 0 4px 6px -1px rgb(0 0 0 / 0.1), 0 2px 4px -2px rgb(0 0 0 / 0.1);
+    --shadow-lg: 0 10px 15px -3px rgb(0 0 0 / 0.1), 0 4px 6px -4px rgb(0 0 0 / 0.1);
+    --shadow-xl: 0 20px 25px -5px rgb(0 0 0 / 0.1), 0 8px 10px -6px rgb(0 0 0 / 0.1);
+    
+    /* Transitions */
+    --transition-fast: 150ms ease;
+    --transition-normal: 200ms ease;
+}
+
+/* --------------------------------------------------------------------------
+   Base Styles
+   -------------------------------------------------------------------------- */
+* {
+    box-sizing: border-box;
+}
+
+body {
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 
+                 'Helvetica Neue', Arial, sans-serif;
+    font-size: 14px;
+    line-height: 1.6;
+    color: var(--color-gray-200);
+    background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+    min-height: 100vh;
+    margin: 0;
+    padding: var(--spacing-xl);
+}
+
+/* --------------------------------------------------------------------------
+   Layout & Container
+   -------------------------------------------------------------------------- */
+#elm-app {
+    max-width: 1100px;
+    margin: 0 auto;
+}
+
+#elm-app > div {
+    background: #1f2937;
+    border-radius: var(--radius-xl);
+    box-shadow: var(--shadow-xl);
+    padding: var(--spacing-xl);
+    color: var(--color-gray-200);
+}
+
+/* --------------------------------------------------------------------------
+   Header Section
+   -------------------------------------------------------------------------- */
+h1 {
+    font-size: 1.75rem;
+    font-weight: 700;
+    color: var(--color-gray-100);
+    margin: 0 0 var(--spacing-sm) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+h1::before {
+    content: "⚙️";
+    font-size: 1.5rem;
+}
+
+.info-text {
+    color: var(--color-gray-500);
+    margin-bottom: var(--spacing-xl);
+    font-size: 0.95rem;
+}
+
+.info-text a {
+    color: var(--color-primary);
+    text-decoration: none;
+    font-weight: 500;
+}
+
+.info-text a:hover {
+    text-decoration: underline;
+}
+
+/* --------------------------------------------------------------------------
+   Machine Name Input Section
+   -------------------------------------------------------------------------- */
+#elm-app > div > div:first-child {
+    background: var(--color-gray-800);
+    border: 1px solid var(--color-gray-600);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    margin-bottom: var(--spacing-xl);
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    color: var(--color-gray-200);
+}
+
+#elm-app > div > div:first-child::before {
+    content: "🏷️";
+    font-size: 1.25rem;
+}
+
+/* --------------------------------------------------------------------------
+   Form Elements - Inputs
+   -------------------------------------------------------------------------- */
+input[type="text"] {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border: 2px solid var(--color-gray-600);
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-family: inherit;
+    transition: all var(--transition-fast);
+    background: var(--color-gray-700);
+    color: var(--color-gray-100);
+    width: 140px;
+}
+
+input[type="text"]:hover {
+    border-color: var(--color-primary-light);
+}
+
+input[type="text"]:focus {
+    outline: none;
+    border-color: var(--color-primary-light);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
+    background: var(--color-gray-600);
+}
+
+input[type="text"]::placeholder {
+    color: var(--color-gray-400);
+    font-style: italic;
+    opacity: 0.8;
+}
+
+input[type="text"]:disabled {
+    background: var(--color-gray-800);
+    border-color: var(--color-gray-700);
+    color: var(--color-gray-500);
+    cursor: not-allowed;
+}
+
+/* Machine name input - make it wider */
+#elm-app > div > div:first-child input[type="text"] {
+    width: 250px;
+    font-size: 1rem;
+    padding: var(--spacing-sm) var(--spacing-lg);
+}
+
+/* --------------------------------------------------------------------------
+   Form Elements - Select
+   -------------------------------------------------------------------------- */
+select {
+    padding: var(--spacing-sm) var(--spacing-md);
+    padding-right: var(--spacing-xl);
+    border: 2px solid var(--color-gray-600);
+    border-radius: var(--radius-md);
+    font-size: 0.8rem;
+    font-family: inherit;
+    background: var(--color-gray-700) url("data:image/svg+xml,%3csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 20 20'%3e%3cpath stroke='%239ca3af' stroke-linecap='round' stroke-linejoin='round' stroke-width='1.5' d='M6 8l4 4 4-4'/%3e%3c/svg%3e") right 0.5rem center/1.25em no-repeat;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    appearance: none;
+    -webkit-appearance: none;
+    color: var(--color-gray-200);
+}
+
+select:hover {
+    border-color: var(--color-primary-light);
+}
+
+select:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.15);
+}
+
+/* --------------------------------------------------------------------------
+   Buttons
+   -------------------------------------------------------------------------- */
+button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-sm) var(--spacing-lg);
+    border: none;
+    border-radius: var(--radius-md);
+    font-size: 0.875rem;
+    font-weight: 600;
+    font-family: inherit;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    text-decoration: none;
+}
+
+/* Primary button (default) */
+button {
+    background: var(--color-primary);
+    color: white;
+    box-shadow: var(--shadow-sm);
+}
+
+button:hover {
+    background: var(--color-primary-dark);
+    box-shadow: var(--shadow-md);
+    transform: translateY(-1px);
+}
+
+button:active {
+    transform: translateY(0);
+    box-shadow: var(--shadow-sm);
+}
+
+/* Add/Remove row buttons - make them smaller and styled differently */
+#elm-app > div > table + button,
+#elm-app > div > table + button + button {
+    width: 36px;
+    height: 36px;
+    padding: 0;
+    font-size: 1.25rem;
+    border-radius: var(--radius-md);
+}
+
+/* Plus button - green */
+#elm-app > div > table + button {
+    background: var(--color-secondary);
+}
+
+#elm-app > div > table + button:hover {
+    background: var(--color-secondary-dark);
+}
+
+/* Minus button - red */
+#elm-app > div > table + button + button {
+    background: var(--color-danger);
+}
+
+#elm-app > div > table + button + button:hover {
+    background: var(--color-danger-dark);
+}
+
+/* Action buttons container - target the buttons after code blocks */
+#elm-app > div > div.code-toolbar + div.code-toolbar + div + button,
+#elm-app > div > div.code-toolbar + div.code-toolbar + div + button + button {
+    margin-top: var(--spacing-lg);
+}
+
+/* Make UML Diagram button - secondary style */
+button:nth-last-of-type(2) {
+    background: var(--color-secondary);
+}
+
+button:nth-last-of-type(2):hover {
+    background: var(--color-secondary-dark);
+}
+
+/* --------------------------------------------------------------------------
+   Table Styles
+   -------------------------------------------------------------------------- */
+table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    margin: var(--spacing-lg) 0;
+    background: var(--color-gray-800);
+    border-radius: var(--radius-lg);
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    border: 1px solid var(--color-gray-600);
+}
+
+caption {
+    caption-side: top;
+    text-align: left;
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: var(--color-gray-200);
+    padding: var(--spacing-md) 0;
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+}
+
+caption::before {
+    content: "📋";
+}
+
+/* Table header */
+th {
+    padding: var(--spacing-md) var(--spacing-lg);
+    font-weight: 600;
+    font-size: 0.8rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--color-gray-200);
+}
+
+/* Color-coded headers matching Main.elm */
+th:nth-child(1),
+th:nth-child(2) {
+    background: var(--color-state) !important;
+    color: white !important;
+}
+
+th:nth-child(3) {
+    background: var(--color-event) !important;
+    color: white !important;
+}
+
+th:nth-child(4) {
+    background: var(--color-guard) !important;
+    color: white !important;
+}
+
+th:nth-child(5) {
+    background: var(--color-action) !important;
+    color: white !important;
+}
+
+th:nth-child(6) {
+    background: var(--color-gray-700) !important;
+    color: var(--color-gray-200) !important;
+}
+
+/* Table cells */
+td {
+    padding: var(--spacing-sm) var(--spacing-md);
+    border-bottom: 1px solid var(--color-gray-700);
+    vertical-align: middle;
+    color: var(--color-gray-200);
+}
+
+tr:last-child td {
+    border-bottom: none;
+}
+
+tr:hover td {
+    background: var(--color-gray-700);
+}
+
+/* Table inputs */
+td input[type="text"] {
+    width: 100%;
+    border-color: transparent;
+    background: transparent;
+    color: var(--color-gray-100);
+}
+
+td input[type="text"]:hover {
+    border-color: var(--color-gray-500);
+    background: var(--color-gray-700);
+}
+
+td input[type="text"]:focus {
+    border-color: var(--color-primary);
+    background: var(--color-gray-700);
+}
+
+/* --------------------------------------------------------------------------
+   Code Output Sections
+   -------------------------------------------------------------------------- */
+.code-toolbar {
+    margin: var(--spacing-xl) 0;
+    position: relative;
+}
+
+.code-toolbar::before {
+    content: "Generated C++ Code";
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-gray-300);
+    margin-bottom: var(--spacing-sm);
+    padding-left: var(--spacing-xs);
+}
+
+.code-toolbar:nth-of-type(2)::before {
+    content: "📨 Event Definitions";
+}
+
+.code-toolbar:first-of-type::before {
+    content: "📄 State Machine Class";
+}
+
+pre {
+    background: var(--color-gray-900) !important;
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg) !important;
+    margin: 0;
+    overflow: auto;
+    box-shadow: var(--shadow-lg);
+}
+
+pre code {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
+    font-size: 0.85rem;
+    line-height: 1.7;
+}
+
+/* Override prism styles for dark theme */
+pre[class*="language-"] {
+    background: var(--color-gray-900) !important;
+}
+
+code[class*="language-"] {
+    text-shadow: none !important;
+}
+
+/* --------------------------------------------------------------------------
+   Textarea (Main Content)
+   -------------------------------------------------------------------------- */
+textarea {
+    font-family: 'JetBrains Mono', 'Fira Code', 'Consolas', 'Monaco', monospace;
+    font-size: 0.85rem;
+    line-height: 1.6;
+    border: 2px solid var(--color-gray-600);
+    border-radius: var(--radius-lg);
+    padding: var(--spacing-lg);
+    background: var(--color-gray-800);
+    color: var(--color-gray-100);
+    resize: vertical;
+    transition: all var(--transition-fast);
+    width: 100% !important;
+    max-width: 100%;
+    box-sizing: border-box;
+}
+
+textarea:hover {
+    border-color: var(--color-primary-light);
+}
+
+textarea:focus {
+    outline: none;
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px rgba(79, 70, 229, 0.25);
+    background: var(--color-gray-700);
+}
+
+/* Add a label before textarea */
+#elm-app > div > div:has(textarea)::before,
+textarea::before {
+    content: "✏️ Main Function (editable)";
+    display: block;
+    font-size: 0.9rem;
+    font-weight: 600;
+    color: var(--color-gray-300);
+    margin-bottom: var(--spacing-sm);
+}
+
+/* --------------------------------------------------------------------------
+   PlantUML Diagram
+   -------------------------------------------------------------------------- */
+#plantuml-img {
+    max-width: 100%;
+    margin-top: var(--spacing-xl);
+    border: 2px solid var(--color-gray-600);
+    border-radius: var(--radius-lg);
+    box-shadow: var(--shadow-lg);
+    background: var(--color-gray-100);
+    padding: var(--spacing-lg);
+}
+
+#plantuml-img:not([src=""]) {
+    display: block;
+}
+
+/* --------------------------------------------------------------------------
+   Button Group / Actions
+   -------------------------------------------------------------------------- */
+/* Style the action buttons at the bottom */
+#elm-app > div > button:nth-last-of-type(1),
+#elm-app > div > button:nth-last-of-type(2) {
+    padding: var(--spacing-md) var(--spacing-xl);
+    font-size: 0.95rem;
+    margin-top: var(--spacing-lg);
+}
+
+/* --------------------------------------------------------------------------
+   Responsive Design
+   -------------------------------------------------------------------------- */
+@media (max-width: 768px) {
+    body {
+        padding: var(--spacing-md);
+    }
+    
+    #elm-app > div {
+        padding: var(--spacing-lg);
+    }
+    
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+    
+    input[type="text"] {
+        width: 100px;
+    }
+    
+    textarea {
+        height: 150px !important;
+    }
+}
+
+/* --------------------------------------------------------------------------
+   Animations
+   -------------------------------------------------------------------------- */
+@keyframes fadeIn {
+    from {
+        opacity: 0;
+        transform: translateY(10px);
+    }
+    to {
+        opacity: 1;
+        transform: translateY(0);
+    }
+}
+
+#elm-app > div {
+    animation: fadeIn 0.3s ease-out;
+}
+
+/* Row hover effect */
+tr {
+    transition: background var(--transition-fast);
+}
+
+/* --------------------------------------------------------------------------
+   Utility Classes (can be added via Elm)
+   -------------------------------------------------------------------------- */
+.visually-hidden {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    padding: 0;
+    margin: -1px;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+}
+
+.flex {
+    display: flex;
+}
+
+.gap-md {
+    gap: var(--spacing-md);
+}
+
+.mt-lg {
+    margin-top: var(--spacing-lg);
+}
+
+/* --------------------------------------------------------------------------
+   Print Styles
+   -------------------------------------------------------------------------- */
+@media print {
+    body {
+        background: white;
+        padding: 0;
+    }
+    
+    #elm-app > div {
+        box-shadow: none;
+    }
+    
+    button {
+        display: none;
+    }
+    
+    pre {
+        box-shadow: none;
+        border: 1px solid #ddd;
+    }
+}

@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FSM - State Machine Generator for Boost.SML</title>
+    
+    <!-- Google Fonts - Inter for UI, JetBrains Mono for code -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+    
+    <!-- Stylesheets -->
+    <link href="extra/prism.css" rel="stylesheet" />
+    <link href="extra/styles.css" rel="stylesheet" />
+</head>
+<body>
+    <!-- Header outside Elm app for better styling control -->
+    <div id="page-header" style="max-width: 1100px; margin: 0 auto var(--spacing-lg, 1.5rem) auto;">
+        <h1>FSM - State Machine Generator</h1>
+        <p class="info-text">
+            Generate <a href="https://github.com/boost-ext/sml" target="_blank">Boost.SML</a> 
+            C++ state machine code from a simple table interface. 
+            Created with <a href="https://elm-lang.org/" target="_blank">Elm</a>.
+        </p>
+    </div>
+    
+    <!-- Elm Application -->
+    <div id="elm-app"></div>
+    
+    <!-- PlantUML Output Section -->
+    <div id="diagram-section" style="max-width: 1100px; margin: var(--spacing-xl, 2rem) auto 0 auto;">
+        <div id="encoded-data"></div>
+        <img id="plantuml-img" alt="PlantUML State Diagram" style="display: none;"/>
+    </div>
+
+    <!-- Scripts -->
+    <script src="https://cdn.jsdelivr.net/npm/plantuml-encoder@1.4.0/dist/plantuml-encoder.min.js"></script>
+    <script src="extra/prism.js"></script>
+    <script src="elm.js"></script>
+    <script>
+        var app = Elm.Main.init({
+            node: document.getElementById("elm-app")
+        });
+
+        // Port handler for syntax highlighting
+        // Debounce to avoid excessive calls
+        var highlightTimeout = null;
+        app.ports.highlightCode.subscribe(function() {
+            if (highlightTimeout) {
+                clearTimeout(highlightTimeout);
+            }
+            highlightTimeout = setTimeout(function() {
+                var cppOutput = document.getElementById('cpp-output');
+                var eventOutput = document.getElementById('event-output');
+                
+                if (cppOutput) {
+                    var cppText = cppOutput.textContent;
+                    cppOutput.innerHTML = cppText;
+                    Prism.highlightElement(cppOutput);
+                }
+                if (eventOutput) {
+                    var eventText = eventOutput.textContent;
+                    eventOutput.innerHTML = eventText;
+                    Prism.highlightElement(eventOutput);
+                }
+            }, 300);
+        });
+
+        // Port handler for PlantUML diagram
+        app.ports.sendDiagram.subscribe(function(data) {
+            console.log("Data from Elm: ", data);
+
+            var plantumlEncoder = window.plantumlEncoder;
+            var encoded_data = plantumlEncoder.encode(data);
+
+            var baseUrl = 'http://www.plantuml.com/plantuml/img/';
+            var url = baseUrl + encoded_data;
+            
+            var imgElement = document.getElementById('plantuml-img');
+            imgElement.src = url;
+            imgElement.style.display = 'block';
+        });
+
+        // Port handler for Compiler Explorer (godbolt.org)
+        app.ports.openCompilerExplorer.subscribe(function(code) {
+            console.log("Opening Compiler Explorer with code");
+            
+            // Replace local boost/sml.hpp include with raw GitHub URL for Godbolt
+            var godboltCode = code.replace(
+                /#include\s*<boost\/sml\.hpp>/g,
+                '#include <https://raw.githubusercontent.com/boost-ext/sml/master/include/boost/sml.hpp>'
+            );
+            
+            if (code !== godboltCode) {
+                console.log("Include replacement successful!");
+            } else {
+                console.log("WARNING: No include replacement made");
+            }
+            
+            // Create the clientstate object for Compiler Explorer
+            var clientState = {
+                sessions: [{
+                    id: 1,
+                    language: "c++",
+                    source: godboltCode,
+                    compilers: [{
+                        id: "clang_trunk",
+                        options: "-std=c++20"
+                    }],
+                    executors: [{
+                        compiler: {
+                            id: "clang_trunk",
+                            options: "-std=c++20"
+                        }
+                    }]
+                }]
+            };
+            
+            // Base64 encode the clientstate
+            var jsonString = JSON.stringify(clientState);
+            var base64 = btoa(unescape(encodeURIComponent(jsonString)));
+            
+            // URL-safe base64
+            var urlSafeBase64 = base64.replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
+            
+            // Open Compiler Explorer in a new tab
+            var url = 'https://godbolt.org/clientstate/' + urlSafeBase64;
+            window.open(url, '_blank');
+        });
+
+        // Initial highlighting after page load
+        document.addEventListener('DOMContentLoaded', function() {
+            Prism.highlightAll();
+        });
+    </script>
+</body>
+</html>
