@@ -1,0 +1,94 @@
+#+TITLE: Phase 2 - Orthogonal Regions
+#+AUTHOR: Carl Olsen
+#+DATE: 2026-06-04
+
+* Feature Overview
+
+Add support for orthogonal (parallel) regions within a single state machine.
+Each machine tab can contain multiple regions, each with its own transition
+table. All regions are combined into one =make_transition_table()= in C++.
+
+* Goals
+
+- Allow multiple independent regions per machine
+- Generate correct Boost.SML with multiple initial states (=*=)
+- Generate PlantUML with =--= region separators
+- Compose cleanly with Phase 1 sub-state machines
+
+* Non-goals
+
+- Inter-region synchronization or communication primitives
+- Region-specific naming (regions are anonymous, identified by order)
+
+* Constraints and Assumptions
+
+- Boost.SML supports orthogonal regions via multiple =*= initial-state rows
+- PlantUML uses =--= to separate concurrent regions inside a state
+- Each region has its own independent table rows
+- Minimum one region per machine (default)
+
+* Risks and Open Questions
+
+- UI complexity: how to visually separate regions without confusing the user
+- Should regions be collapsible panels or sub-tabs within a machine tab?
+- State name uniqueness: within a region or across all regions?
+
+* High-level Architecture
+
+** Model Changes (Col/ModelData.elm)
+
+#+begin_src elm
+type alias Region =
+    { tableData : List TableDataRow }
+
+type alias Machine =
+    { name : String
+    , regions : List Region
+    }
+#+end_src
+
+** UI Changes (Main.elm)
+
+- Each machine tab shows its regions as separate table panels
+- + / - buttons to add/remove regions within active machine
+- Visual separator between regions (horizontal rule or border)
+
+** C++ Generation (Col/CppData.elm)
+
+- Combine all regions' rows into single =make_transition_table()=
+- First row of each region gets =*= prefix (initial state)
+- =makeConstexprClass= collects states from all regions
+
+** PlantUML Generation (Col/PlantUml.elm)
+
+- Insert =--= separator between region blocks
+- Each region gets its own =[*] -->= initial transition
+
+* Task List
+
+** TODO Update ModelData with Region type
+- Add =Region= type alias with =tableData=
+- Update =Machine= to hold =regions : List Region=
+- Update =init= to create one default region per machine
+- Adjust helpers to iterate over regions
+
+** TODO Update Main.elm for region UI
+- Add region panel rendering within each machine tab
+- Add =Msg= variants: =AddRegion=, =RemoveRegion Int=
+- Wire =UpdateField=, =AddRow=, =DelRow= to target active region
+- Add visual separator between region panels
+
+** TODO Update CppData for multi-region transition table
+- Collect rows from all regions into one =make_transition_table()=
+- Mark first row of each region with =*= (initial state prefix)
+- Ensure =makeConstexprClass= and =makeEventHeader= span all regions
+
+** TODO Update PlantUml for region separators
+- Insert =--= between region transition blocks
+- Each region contributes its own =[*] -->= line
+- Ensure composite state nesting (Phase 1) wraps all regions
+
+** TODO Add tests for orthogonal regions
+- Test multi-region C++ output (multiple =*= states)
+- Test PlantUML =--= separator generation
+- Test combined sub-SM + regions scenario

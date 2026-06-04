@@ -1,6 +1,6 @@
 module Col.PlantUml exposing (convertTable,plantUmlDataToString,PlantUmlData,uniqueStates,makeTransitionStr,createSystem
                              ,getStateByName,getStateByIndex,findStateByLineNr,makeStateTranstionStr,makeSystemString
-                             ,genSystem,transformTR2Transition)
+                             ,genSystem,transformTR2Transition,makeNestedSystemString)
 --import String.Interpolate exposing(interpolate)
 import Set
 import Col.ModelData as MD
@@ -281,10 +281,12 @@ systemAttributeStr tr =
         ev = Maybe.withDefault ""  (eventStra tr.event)
         guard = Maybe.withDefault "" (guardStra tr.guard)
         action = Maybe.withDefault "" (actionStra tr.action tr.selected)
+        combined = ev ++ guard ++ action
     in
-    case (ev,guard,action) of
-        ("","","") -> ""
-        (_,_,_) -> ":" ++ ev ++ guard ++ action
+    if String.trim combined == "" then
+        ""
+    else
+        ":" ++ combined
 
 
 
@@ -309,6 +311,16 @@ makeStateTranstionStr states =
                             acc ++ (String.concat lstTransStr)
                         ) "" states
 
+
+-- | Get initial state from a machine's table data (first row's startState)
+getInitialStateFromMachine : MD.Machine -> String
+getInitialStateFromMachine machine =
+    machine.tableData
+        |> List.head
+        |> Maybe.andThen (\row -> row.data.startState)
+        |> Maybe.withDefault ""
+
+
 makeSystemString: System -> String
 makeSystemString system =
     let
@@ -319,6 +331,108 @@ makeSystemString system =
     in
     headerStartStr ++ (systemStartStr system.name) ++ startState ++
         (makeStateTranstionStr system.states) ++ systemEndStr ++ headerEndStr
+
+
+-------------------------------------------------------------------------------
+--                    Nested Composite State Generation                      --
+-- For sub-state machines, we render sub-SM states as nested
+-- state X { ... } blocks with their own [*] initial state
+-------------------------------------------------------------------------------
+
+-- | Generate a full nested PlantUML diagram from a list of machines
+-- The first machine is the root. States matching other machine names are
+-- rendered as nested composite states.
+-- Uses aliased state names in nested blocks to avoid PlantUML name collisions.
+makeNestedSystemString : List MD.Machine -> String
+makeNestedSystemString machines =
+    let
+        machineNames = List.map .name machines
+
+        findMachine name =
+            List.filter (\m -> m.name == name) machines
+                |> List.head
+
+        -- Generate the content of a single machine (transitions + nested sub-SMs)
+        -- prefix is used to make state IDs unique (empty for root)
+        -- indent is the indentation prefix for this level
+        generateMachineContent : String -> String -> MD.Machine -> String
+        generateMachineContent prefix indent machine =
+            let
+                uniqueStates_ = MD.getAllStates machine
+                system = genSystem machine.name uniqueStates_ (transformTR2Transition machine.tableData)
+                initialState = getInitialStateFromMachine machine
+
+                -- Alias a state name with a prefix for uniqueness
+                aliasId stateName = prefix ++ stateName
+
+                -- If we have a prefix, declare state aliases for display names
+                stateAliases =
+                    if String.isEmpty prefix then
+                        ""
+                    else
+                        uniqueStates_
+                            |> List.filter (\s -> not (List.member s machineNames) && s /= "X" && s /= "x")
+                            |> List.map (\s -> indent ++ "state \"" ++ s ++ "\" as " ++ aliasId s ++ "\n")
+                            |> String.concat
+
+                initialStateStr = indent ++ "[*]-->" ++ aliasId initialState ++ "\n"
+
+                -- Generate transitions using aliased names
+                stateTransitions =
+                    List.foldl (\state acc ->
+                        let
+                            fromId = if List.member state.name machineNames then state.name else aliasId state.name
+                            lstTransStr = List.map (\trans -> indent ++ makeAliasedTransitionStr fromId aliasId machineNames trans) state.transitions
+                        in
+                            acc ++ (String.concat lstTransStr)
+                    ) "" system.states
+
+                -- Generate nested sub-SM blocks
+                subSmBlocks =
+                    uniqueStates_
+                        |> List.filter (\s -> List.member s machineNames && s /= machine.name)
+                        |> List.map (\subSmName ->
+                            case findMachine subSmName of
+                                Just subMachine ->
+                                    let
+                                        childPrefix = prefix ++ subSmName ++ "_"
+                                    in
+                                    indent ++ "state " ++ subSmName ++ " {\n"
+                                    ++ generateMachineContent childPrefix (indent ++ "  ") subMachine
+                                    ++ indent ++ "}\n"
+                                Nothing -> ""
+                           )
+                        |> String.concat
+            in
+            stateAliases ++ initialStateStr ++ stateTransitions ++ subSmBlocks
+
+        rootMachine = List.head machines
+    in
+    case rootMachine of
+        Just root ->
+            headerStartStr
+            ++ systemStartStr root.name
+            ++ generateMachineContent "" "" root
+            ++ systemEndStr
+            ++ headerEndStr
+        Nothing ->
+            headerStartStr ++ headerEndStr
+
+
+-- | Like makeTransitionStr but uses aliased state names
+-- machineNames is passed so we can skip aliasing sub-SM target states
+makeAliasedTransitionStr : String -> (String -> String) -> List String -> Transition -> String
+makeAliasedTransitionStr fromName aliasId machineNames_ tr =
+    case tr.endState of
+        Nothing -> fromName ++ systemAttributeStr tr ++ "\n"
+        Just endState -> case endState of
+                             "X" ->
+                                 fromName ++ "-->" ++ "[*]" ++ systemAttributeStr tr ++ "\n"
+                             _ ->
+                                 let
+                                     targetId = if List.member endState machineNames_ then endState else aliasId endState
+                                 in
+                                 fromName ++ "->" ++ targetId ++ systemAttributeStr tr ++ "\n"
 
 
 plantUmlDataToString : PlantUmlData -> String

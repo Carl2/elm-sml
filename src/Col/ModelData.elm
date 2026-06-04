@@ -1,4 +1,4 @@
-module Col.ModelData exposing (Model,TableDataRow,RowData,Selected(..)
+module Col.ModelData exposing (Model,Machine,TableDataRow,RowData,Selected(..)
                                    ,defaultRowData
                                    ,convertToStringList
                                    ,init
@@ -7,12 +7,16 @@ module Col.ModelData exposing (Model,TableDataRow,RowData,Selected(..)
                                    ,updateSelected
                                    ,convertSelected
                                    ,getAllStates
+                                   ,getActiveMachine
+                                   ,getMachineNames
+                                   ,getRootName
+                                   ,updateActiveMachineTableData
                               )
 import Maybe
 import Set
 import Col.Default as DF
 
-invalidStateNames = ["x"]
+invalidStateNames = ["x", "X", ""]
 
 type alias RowData =
     { startState : Maybe String
@@ -29,11 +33,15 @@ type alias TableDataRow  = { rowIndex : Int
                           ,data : RowData
                           }
 
+type alias Machine =
+    { name : String
+    , tableData : List TableDataRow
+    }
 
 type alias Model =
-    { tableData : List TableDataRow
-    ,systemName : String
-    ,mainContent : String
+    { machines : List Machine
+    , activeMachine : Int
+    , mainContent : String
     }
 
 type Selected =
@@ -74,10 +82,54 @@ createTableDataRow index =
 
 init: () -> (Model, Cmd msg)
 init _ =
-    ({ tableData = List.map createTableDataRow <| List.range 0 4
-    , systemName = DF.defaultName
-    , mainContent = DF.makeMain DF.defaultName
+    let
+        defaultMachine =
+            { name = DF.defaultName
+            , tableData = List.map createTableDataRow <| List.range 0 4
+            }
+    in
+    ({ machines = [defaultMachine]
+     , activeMachine = 0
+     , mainContent = DF.makeMain DF.defaultName
     },Cmd.none)
+
+
+-------------------------------------------------------------------------------
+-- Helper functions for accessing machines
+-------------------------------------------------------------------------------
+
+getActiveMachine : Model -> Maybe Machine
+getActiveMachine model =
+    List.drop model.activeMachine model.machines
+        |> List.head
+
+
+getMachineNames : Model -> List String
+getMachineNames model =
+    List.map .name model.machines
+
+
+getRootName : Model -> String
+getRootName model =
+    List.head model.machines
+        |> Maybe.map .name
+        |> Maybe.withDefault DF.defaultName
+
+
+updateActiveMachineTableData : Model -> (List TableDataRow -> List TableDataRow) -> Model
+updateActiveMachineTableData model fn =
+    let
+        updateAt idx machines =
+            List.indexedMap
+                (\i machine ->
+                    if i == idx then
+                        { machine | tableData = fn machine.tableData }
+                    else
+                        machine
+                )
+                machines
+    in
+    { model | machines = updateAt model.activeMachine model.machines }
 
 
 -------------------------------------------------------------------------------
@@ -96,13 +148,9 @@ rowDataToStringList rowData =
     ]
 
 
-
-
-
-
-convertToStringList: Model -> List (List String)
-convertToStringList model =
-    List.map (\rowData -> rowDataToStringList rowData.data) model.tableData
+convertToStringList: Machine -> List (List String)
+convertToStringList machine =
+    List.map (\rowData -> rowDataToStringList rowData.data) machine.tableData
 
 --
 -------------------------------------------------------------------------------
@@ -128,8 +176,11 @@ updateSelected model rowIndex newValue =
                 { row | selected = newValue }
             else
                 row
+
+        updateMachine machine =
+            { machine | tableData = List.map updateRow machine.tableData }
     in
-    { model | tableData = List.map updateRow model.tableData }
+    updateActiveMachineTableData model (\tableData -> List.map updateRow tableData)
 
 --
 -------------------------------------------------------------------------------
@@ -140,10 +191,10 @@ filterOutInvalids state lstInvalids =
     not <| List.member state lstInvalids
 
 
-getAllStates: Model -> List String
-getAllStates mdl =
+getAllStates: Machine -> List String
+getAllStates machine =
     let
-        allRows = List.map .data mdl.tableData
+        allRows = List.map .data machine.tableData
         maybeStates = (List.map .startState allRows) ++ (List.map .endState allRows)
         onlyValidStates states = List.filter
                                  (\maybeState -> case maybeState of

@@ -7,9 +7,9 @@ import Col.CppData as Cpp
 import Html exposing (Html, button, code, div, input, pre, table, td, text, tr,span,img,option,select)
 import Html.Keyed as Keyed
 import Html.Attributes exposing (..)
-import Html.Events exposing (onInput,onClick)
+import Html.Events exposing (onInput,onClick,onBlur)
 import Col.PlantUml as PU
-import Col.ModelData as MD exposing(Model,TableDataRow,RowData,convertToStringList,init)
+import Col.ModelData as MD exposing (Model,Machine,TableDataRow,RowData,convertToStringList,init,getActiveMachine,getMachineNames,getRootName,updateActiveMachineTableData)
 import Col.Default as DF
 
 
@@ -22,13 +22,16 @@ port downloadFile : { filename : String, content : String } -> Cmd msg
 type Msg
     = UpdateField Int Int String
       | UpdateSelection Int String
-      | UpdateMachineName String
+      | RenameMachine Int String
       | AddRow
       | DelRow
       | MakeUmlDiagram
       | UpdateMainContent String
       | OpenCompilerExplorer
       | DownloadCode
+      | AddMachine
+      | RemoveMachine Int
+      | SwitchMachine Int
 
 
 
@@ -41,8 +44,6 @@ update msg model =
     case msg of
         UpdateField rowIndex fieldIndex newValue ->
             let
-                -- This is a function that takes an index and a new value and updates the 'data' field of the TableData object at that index.
-
                 updateRowAt rowIdx fIndex value tableRows =
                     List.indexedMap
                         (\i tableDataRow ->
@@ -53,71 +54,180 @@ update msg model =
                         )
                         tableRows
             in
-                ({ model | tableData = updateRowAt rowIndex fieldIndex newValue model.tableData }, highlightCode ())
+                (updateActiveMachineTableData model (updateRowAt rowIndex fieldIndex newValue), highlightCode ())
 
-        UpdateMachineName str -> updateMachineName str model
+        RenameMachine idx newName ->
+            renameMachine idx newName model
+
         AddRow ->
             let
-                newIndex = List.length model.tableData
-                newRow =  { rowIndex = newIndex, selected = "No Special", data = MD.defaultRowData }
+                addNewRow tableData =
+                    let
+                        newIndex = List.length tableData
+                        newRow = { rowIndex = newIndex, selected = "No Special", data = MD.defaultRowData }
+                    in
+                    tableData ++ [newRow]
+                newModel = updateActiveMachineTableData model addNewRow
             in
-                ({model | tableData = model.tableData ++ [newRow]}, highlightCode ())
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+
         DelRow ->
-            ({model | tableData = List.take ((List.length model.tableData) - 1) model.tableData }, highlightCode ())
+            let
+                removeLastRow tableData =
+                    List.take ((List.length tableData) - 1) tableData
+                newModel = updateActiveMachineTableData model removeLastRow
+            in
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+
         MakeUmlDiagram ->
             (model, sendDiagram <| createPlantUmlDiagram model)
+
         UpdateMainContent str ->
             ({model | mainContent = str}, Cmd.none )
+
         UpdateSelection rowIdx select ->
-            (MD.updateSelected model rowIdx select, highlightCode ())
+            let newModel = MD.updateSelected model rowIdx select
+            in (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+
         OpenCompilerExplorer ->
             (model, openCompilerExplorer (generateFullCode model))
 
         DownloadCode ->
             (model, downloadFile 
-                { filename = model.systemName ++ ".hpp"
+                { filename = getRootName model ++ ".hpp"
                 , content = generateFullCode model
                 })
 
+        AddMachine ->
+            let
+                newMachine = { name = "NewMachine", tableData = List.map (\i -> { rowIndex = i, selected = "No Special", data = MD.defaultRowData }) (List.range 0 4) }
+                newModel = { model | machines = model.machines ++ [newMachine], activeMachine = List.length model.machines }
+            in
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+
+        RemoveMachine idx ->
+            let
+                -- Don't allow removing the root machine (index 0)
+                newMachines = if idx > 0 then
+                                  List.take idx model.machines ++ List.drop (idx + 1) model.machines
+                              else
+                                  model.machines
+                newActive = Basics.min model.activeMachine (List.length newMachines - 1)
+                            |> Basics.max 0
+                newModel = { model | machines = newMachines, activeMachine = newActive }
+            in
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+
+        SwitchMachine idx ->
+            let newModel = { model | activeMachine = idx }
+            in (newModel, sendDiagram <| createPlantUmlDiagram newModel)
 
 
 
 
-
-updateMachineName: String -> Model -> (Model, Cmd msg)
-updateMachineName name model =
+renameMachine: Int -> String -> Model -> (Model, Cmd msg)
+renameMachine idx newName model =
     let
-        prevContent = DF.smlStr ++ model.systemName
-        newModel = {model | systemName = name
-                   , mainContent = (String.replace prevContent (DF.smlStr ++ name) model.mainContent)
-                   }
+        isRootMachine = idx == 0
+        prevRootName = getRootName model
 
+        updateMachineAt machines =
+            List.indexedMap
+                (\i machine ->
+                    if i == idx then
+                        { machine | name = newName }
+                    else
+                        machine
+                )
+                machines
+
+        newModel = { model | machines = updateMachineAt model.machines }
+
+        -- If renaming the root machine, also update mainContent
+        finalModel =
+            if isRootMachine then
+                let
+                    prevContent = DF.smlStr ++ prevRootName
+                in
+                { newModel | mainContent = String.replace prevContent (DF.smlStr ++ newName) newModel.mainContent }
+            else
+                newModel
     in
-    (newModel, highlightCode ())
+    (finalModel, highlightCode ())
+
 
 view : Model -> Html Msg
 view model =
+    let
+        activeMachine = getActiveMachine model
+    in
     div []
-        [ makeSystemNameInput model
-        ,table [] (makeModelTable model)
-        ,button [onClick AddRow] [ text "+"]
-        ,button [onClick DelRow] [ text "-"]
-        ,makeCodeOutput model
-        ,makeEventOutput model
-        ,makeMainOutput model
-        ,button [onClick MakeUmlDiagram] [text "Make Uml Diagram" ]
-        ,button [onClick OpenCompilerExplorer, style "margin-left" "10px"] [text "Compiler Explorer" ]
-        ,button [onClick DownloadCode, style "margin-left" "10px"] [text "Download Code" ]
+        [ makeTabBar model
+        , case activeMachine of
+            Just machine ->
+                div []
+                    [ makeMachineNameInput model
+                    , table [] (makeModelTable model machine)
+                    , button [onClick AddRow] [ text "+"]
+                    , button [onClick DelRow] [ text "-"]
+                    ]
+            Nothing ->
+                div [] [text "No machine selected"]
+        , makeCodeOutput model
+        , makeEventOutput model
+        , makeMainOutput model
+        , button [onClick MakeUmlDiagram] [text "Make Uml Diagram" ]
+        , button [onClick OpenCompilerExplorer, style "margin-left" "10px"] [text "Compiler Explorer" ]
+        , button [onClick DownloadCode, style "margin-left" "10px"] [text "Download Code" ]
         ]
 
 
-makeSystemNameInput: Model -> Html Msg
-makeSystemNameInput model =
+-------------------------------------------------------------------------------
+--                              Tab Bar                                      --
+-------------------------------------------------------------------------------
+
+makeTabBar : Model -> Html Msg
+makeTabBar model =
+    let
+        makeTab idx machine =
+            let
+                isActive = idx == model.activeMachine
+                tabStyle = if isActive then
+                               [style "background-color" "#4a90d9", style "color" "white", style "font-weight" "bold"]
+                           else
+                               [style "background-color" "#e0e0e0", style "color" "black"]
+                baseStyle = [style "padding" "8px 16px"
+                            , style "border" "1px solid #ccc"
+                            , style "border-bottom" "none"
+                            , style "cursor" "pointer"
+                            , style "margin-right" "2px"
+                            , style "display" "inline-block"
+                            ]
+                removeBtn =
+                    if idx > 0 then
+                        [span [onClick (RemoveMachine idx), style "margin-left" "8px", style "cursor" "pointer"] [text "x"]]
+                    else
+                        []
+            in
+            span (baseStyle ++ tabStyle ++ [onClick (SwitchMachine idx)])
+                ([text machine.name] ++ removeBtn)
+
+        tabs = List.indexedMap makeTab model.machines
+        addBtn = button [onClick AddMachine, style "margin-left" "4px"] [text "+"]
+    in
+    div [style "margin-bottom" "10px", style "border-bottom" "2px solid #4a90d9"]
+        (tabs ++ [addBtn])
+
+
+makeMachineNameInput: Model -> Html Msg
+makeMachineNameInput model =
     div [ ] [
-         text "Statemachine Name: "
+         text "Machine Name: "
         ,input [ type_ "text"
-               , placeholder "StateMachine Name"
-               , Html.Events.onInput UpdateMachineName] []
+               , placeholder "Machine Name"
+               , value (getActiveMachine model |> Maybe.map .name |> Maybe.withDefault "")
+               , Html.Events.onInput (RenameMachine model.activeMachine)
+               , onBlur MakeUmlDiagram] []
         ]
 
 -------------------------------------------------------------------------------
@@ -125,12 +235,19 @@ makeSystemNameInput model =
 -------------------------------------------------------------------------------
 
 createPlantUmlDiagram: Model -> String
-createPlantUmlDiagram mdl =
-    let
-        uniqueStates = MD.getAllStates mdl
-        sys =PU.genSystem mdl.systemName uniqueStates  <| PU.transformTR2Transition mdl.tableData
-    in
-        PU.makeSystemString sys
+createPlantUmlDiagram model =
+    if List.length model.machines > 1 then
+        PU.makeNestedSystemString model.machines
+    else
+        case List.head model.machines of
+            Just machine ->
+                let
+                    uniqueStates = MD.getAllStates machine
+                    sys = PU.genSystem machine.name uniqueStates (PU.transformTR2Transition machine.tableData)
+                in
+                PU.makeSystemString sys
+            Nothing ->
+                ""
 
 -------------------------------------------------------------------------------
 --                    Generate full code for Compiler Explorer               --
@@ -138,23 +255,21 @@ createPlantUmlDiagram mdl =
 generateFullCode: Model -> String
 generateFullCode model =
     let
-        eventHeader = Cpp.makeEventHeader <| convertToStringList model
-        smlClass = Cpp.makeConstexprClass <| convertToStringList model
-        cppStr = Cpp.makeFsmRowFromModel model
-               |> Cpp.make_cpp_data smlClass model.systemName
+        -- Collect all string lists from all machines for event/guard/action headers
+        allStringLists = List.concatMap MD.convertToStringList model.machines
+        eventHeader = Cpp.makeEventHeader allStringLists
+        structs = Cpp.generateAllStructs model.machines
         mainContent = model.mainContent
     in
-        Cpp.includeHeader ++ eventHeader ++ "\n" ++ cppStr ++ "\n" ++ mainContent
+        Cpp.includeHeader ++ eventHeader ++ "\n" ++ structs ++ "\n" ++ mainContent
+
 -------------------------------------------------------------------------------
 --                              Make code output                             --
 -------------------------------------------------------------------------------
 makeCodeOutput: Model -> Html msg
 makeCodeOutput model =
     let
-        smlClass = Cpp.makeConstexprClass <|  convertToStringList model
-        cppStr = Cpp.makeFsmRowFromModel model
-               |> Cpp.make_cpp_data  smlClass model.systemName
-
+        cppStr = Cpp.generateAllStructs model.machines
     in
         div [class "code-toolbar"]
             [Keyed.node "pre" [class "line-numbers"]
@@ -171,8 +286,9 @@ makeCodeOutput model =
 makeEventOutput: Model -> Html msg
 makeEventOutput model =
     let
+        allStringLists = List.concatMap MD.convertToStringList model.machines
         eventCode = "// This could be placed in a header file\n" 
-                    ++ (Cpp.makeEventHeader <| convertToStringList model)
+                    ++ (Cpp.makeEventHeader allStringLists)
     in
     div [class "code-toolbar"]
         [Keyed.node "pre" [class "line-numbers"]
@@ -249,13 +365,15 @@ forEachField rowIndex tableDataRow =
     List.indexedMap (\fieldIndex field -> td []
                          [ input
                                [ type_ "text"
+                               , value (Maybe.withDefault "" field)
                                , disabled <| isDisabled fieldIndex tableDataRow.selected
                                , placeholder (getPlaceHolderText fieldIndex)
                                , Html.Events.onInput
-                                     (\newValue -> UpdateField
-                                          rowIndex
-                                          fieldIndex
-                                          newValue)
+                                      (\newValue -> UpdateField
+                                           rowIndex
+                                           fieldIndex
+                                           newValue)
+                               , onBlur MakeUmlDiagram
 
                                ]
                                []
@@ -264,12 +382,12 @@ forEachField rowIndex tableDataRow =
 
 
 
-makeModelTable: Model -> List (Html Msg)
-makeModelTable model =
+makeModelTable: Model -> Machine -> List (Html Msg)
+makeModelTable model machine =
     let
         forEachRow tableDatas = List.indexedMap (\rowIndex tableData -> tr [] (forEachField rowIndex tableData) ) tableDatas
     in
-        makeHeader ++ [Html.tbody [] (forEachRow model.tableData)]
+        makeHeader ++ [Html.tbody [] (forEachRow machine.tableData)]
 
 
 

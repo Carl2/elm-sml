@@ -4,9 +4,8 @@ import Debug
 import Expect exposing (Expectation)
 import Fuzz exposing (Fuzzer, int, list, string)
 import Test exposing (..)
-import Col.CppData as Cpp exposing (make_cpp_data, make_fsm_row,makeFsmRowTable)
-import Main exposing (update,  Msg(..))
-import Col.ModelData exposing (Model)
+import Col.CppData as Cpp exposing (make_cpp_data,makeFsmRowFromMachine,makeFsmRowFromData)
+import Col.ModelData exposing (Machine)
 import Col.PlantUml as PU
 
 
@@ -92,84 +91,37 @@ cppDataTest =
         [test "MakeFsmRowTable Test" <|
              \_ ->
              let
-                 mdl = [["s0","s1","e1","g1","a1"]]
-             in
-                 Cpp.makeFsmRowTable mdl |> Expect.equal "*s0   + event<e1>   [g1]   / (a1)   = s1\n        "
-        ,test "Test without with only states" <|
-            \_ ->
-                let
-                    mdl = [["s0","s1","","",""]]
-                in
-                    Cpp.makeFsmRowTable mdl
-                        |> Expect.equal "*s0            = s1\n        "
-        ,test "Non start state" <|
-            \_ ->
-                let
-                    mdl = [["","s1","e1","g1","a1"]]
-                in
-                    Cpp.makeFsmRowTable mdl
-        |> Expect.equal ""
-        ,test "Multiple rows" <|
-            \_ ->
-                let
-                    mdl = [["s0","s1","e1","g1","a1"],["s1","s2","e2","g2","a2"]]
-                in
-                    Cpp.makeFsmRowTable mdl |>
-                                              Expect.equal """*s0   + event<e1>   [g1]   / (a1)   = s1
-        ,s1   + event<e2>   [g2]   / (a2)   = s2\n        """
+                 machine = { name = "Test", tableData = [{ rowIndex = 0, selected = "No Special", data = { startState = Just "s0", endState = Just "s1", event = Just "e1", guard = Just "g1", action = Just "a1" }}]}
+              in
+                 Cpp.makeFsmRowFromMachine [] machine |> Expect.equal "*s0               +event<e1>           [g1]            / (a1)           = s1\n        "
+         ,test "Test without with only states" <|
+             \_ ->
+                 let
+                     machine = { name = "Test", tableData = [{ rowIndex = 0, selected = "No Special", data = { startState = Just "s0", endState = Just "s1", event = Nothing, guard = Nothing, action = Nothing }}]}
+                 in
+                     Cpp.makeFsmRowFromMachine [] machine
+                         |> Expect.equal "*s0                                                                  = s1\n        "
+         ,test "Non start state" <|
+             \_ ->
+                 let
+                     machine = { name = "Test", tableData = [{ rowIndex = 0, selected = "No Special", data = { startState = Nothing, endState = Just "s1", event = Just "e1", guard = Just "g1", action = Just "a1" }}]}
+                 in
+                     Cpp.makeFsmRowFromMachine [] machine
+         |> Expect.equal ""
+         ,test "Multiple rows" <|
+             \_ ->
+                 let
+                     machine = { name = "Test", tableData =
+                         [{ rowIndex = 0, selected = "No Special", data = { startState = Just "s0", endState = Just "s1", event = Just "e1", guard = Just "g1", action = Just "a1" }}
+                         ,{ rowIndex = 1, selected = "No Special", data = { startState = Just "s1", endState = Just "s2", event = Just "e2", guard = Just "g2", action = Just "a2" }}
+                         ]}
+                 in
+                     Cpp.makeFsmRowFromMachine [] machine |>
+                                              Expect.equal "*s0               +event<e1>           [g1]            / (a1)           = s1\n        ,s1               +event<e2>           [g2]            / (a2)           = s2\n        "
 
 
         ]
 
-
-
--- updateTest : Test
--- updateTest =
---     describe "Update test (update model)"
---         [ test "AddRow" <|
---             \_ ->
---                 let
---                     mdl = { tableData = [["s0","s1","e1","g1","a1"]]
---                           , systemName = Cpp.defaultName
---                           }
---                     expectedMdl = { tableData = [ ["s0","s1","e1","g1","a1"]
---                                                 , ["","","","",""]
---                                                 ]
---                                   , systemName = Cpp.defaultName
---                                   }
---                     (updated,_) = update AddRow mdl
---                 in
---                     updated |> Expect.equal expectedMdl
-
---         ,test "DelRow" <|
---             \_ ->
---                 let
---                     mdl = { tableData = [ ["s0","s1","e1","g1","a1"]
---                                                 , ["","","","",""]
---                                                 ]
---                                   , systemName = Cpp.defaultName
---                                   }
---                     expectedMdl = { tableData = [ ["s0","s1","e1","g1","a1"]]
---                                   , systemName = Cpp.defaultName
---                                   }
---                     (updated,_) = update DelRow mdl
---                 in
---                     updated |> Expect.equal expectedMdl
-
---         ,test "DelRow Empty" <|
---             \_ ->
---                 let
---                     mdl = { tableData = []
---                                   , systemName = Cpp.defaultName
---                                   }
---                     expectedMdl = { tableData = []
---                                   , systemName = Cpp.defaultName
---                                   }
---                     (updated,_) = update DelRow mdl
---                 in
---                     updated |> Expect.equal expectedMdl
-
---         ]
 
 
 plantUmlTest: Test
@@ -213,33 +165,38 @@ plantUmlTest =
                                                                  ,  endState = Just "B"
                                                                  , event = Just "event1"
                                                                  , guard = Just "guard1"
-                                                                 , lineNr = 1 }) "A->B: event1 [guard1] / action1\n"
+                                                                 , lineNr = 1
+                                                                 , selected = Col.ModelData.NO }) "A->B: event1 [guard1] / action1\n"
 
                                  noEvent state = Expect.equal (PU.makeTransitionStr state
                                                                    { action = Just "action1"
                                                                    ,  endState = Just "B"
                                                                    , event = Nothing
                                                                    , guard = Just "guard1"
-                                                                   , lineNr = 1 }) "A->B: [guard1] / action1\n"
+                                                                   , lineNr = 1
+                                                                   , selected = Col.ModelData.NO }) "A->B: [guard1] / action1\n"
 
                                  onlyAction state = Expect.equal (PU.makeTransitionStr state
                                                                       { action = Just "action1"
                                                                       ,  endState = Just "B"
                                                                       , event = Nothing
                                                                       , guard = Nothing
-                                                                      , lineNr = 1 }) "A->B: / action1\n"
+                                                                      , lineNr = 1
+                                                                      , selected = Col.ModelData.NO }) "A->B: / action1\n"
                                  anonymous state = Expect.equal (PU.makeTransitionStr state
                                                                    { action = Nothing
                                                                    ,  endState = Just "B"
                                                                    , event = Nothing
                                                                    , guard = Nothing
-                                                                   , lineNr = 1 }) "A->B\n"
+                                                                   , lineNr = 1
+                                                                   , selected = Col.ModelData.NO }) "A->B\n"
                                  internal state = Expect.equal (PU.makeTransitionStr state
                                                                     {action = Just "action1"
                                                                     ,  endState = Nothing
                                                                     , event = Just "EI"
                                                                     , guard = Just "guard1"
-                                                                    , lineNr = 1 }) "A: EI [guard1] / action1\n"
+                                                                    , lineNr = 1
+                                                                    , selected = Col.ModelData.NO }) "A: EI [guard1] / action1\n"
                              in
                                  Expect.all [allFields,noEvent,onlyAction,anonymous,internal] "A"
 
@@ -252,24 +209,28 @@ plantUmlTest =
                                                       , endState = Just "B"
                                                       , event = Just "event1"
                                                       , guard = Just "guard1"
-                                                      , lineNr = 1 }
+                                                      , lineNr = 1
+                                                      , selected = Col.ModelData.NO }
                                                      ,{ action = Just "actionI"
                                                       , endState = Nothing
                                                       , event = Just "eventI"
                                                       , guard = Just "guardI"
-                                                      , lineNr = 2 }] }
+                                                      , lineNr = 2
+                                                      , selected = Col.ModelData.NO }] }
                                                ,{ name = "B",
                                                      transitions = [
                                                       { action = Just "action2"
                                                       , endState = Just "A"
                                                       , event = Just "event2"
                                                       , guard = Just "guard2"
-                                                      , lineNr = 1 }
+                                                      , lineNr = 1
+                                                      , selected = Col.ModelData.NO }
                                                      ,{ action = Just "actionC"
                                                       , endState = Just "C"
                                                       , event = Just "eventC"
                                                       , guard = Just "guardC"
-                                                      , lineNr = 2 }] }
+                                                      , lineNr = 2
+                                                      , selected = Col.ModelData.NO }] }
 
                                                ]
 

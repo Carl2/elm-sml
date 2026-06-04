@@ -1,0 +1,112 @@
+#+TITLE: Phase 1 - Sub-state Machines (Hierarchical)
+#+AUTHOR: Carl Olsen
+#+DATE: 2026-06-04
+
+* Feature Overview
+
+Add support for hierarchical (nested) state machines. Users can define
+multiple named machines in separate tabs. When a state name in one machine
+matches another machine's name, it is treated as a sub-state-machine reference.
+
+* Goals
+
+- Allow defining multiple state machines in a single session
+- Implicit sub-SM detection via name matching
+- Generate correct Boost.SML C++ for composite states
+- Generate nested PlantUML composite state diagrams
+
+* Non-goals
+
+- Explicit sub-SM declaration UI (kept implicit for simplicity)
+- Cross-machine event forwarding or shared context (deferred to Phase 3)
+
+* Constraints and Assumptions
+
+- Elm 0.19.1 (no newer features)
+- Sub-SM references use =sml::state<SubSM>= (no =class= keyword)
+- Regular states use =sml::state<class StateName>=
+- C++ structs emitted in dependency order (leaf-first, root-last)
+- A machine cannot reference itself (no recursion)
+
+* Risks and Open Questions
+
+- Circular sub-SM references need detection and error reporting
+- Tab ordering vs dependency ordering for code generation
+- How to handle renaming a machine that is referenced as a sub-SM
+
+* High-level Architecture
+
+** Model Changes (Col/ModelData.elm)
+
+#+begin_src elm
+type alias Machine =
+    { name : String
+    , tableData : List TableDataRow
+    }
+
+type alias Model =
+    { machines : List Machine
+    , activeMachine : Int
+    , mainContent : String
+    }
+#+end_src
+
+- =systemName= removed; root machine is =machines[0].name=
+- =getAllStates= filters out ="X"=, ="x"=, and =""=
+
+** UI Changes (Main.elm)
+
+- Tab bar showing machine names
+- Active tab highlighted
+- + button to add new machine tab
+- x button to remove non-root machine tab
+- Root tab name tied to =systemName=
+
+** C++ Generation (Col/CppData.elm)
+
+- =makeConstexprClass= skips sub-SM states (no constexpr alias emitted)
+- Sub-SM references inlined as =sml::state<SubSM>= in transition rows
+- =generateAllStructs= emits multiple structs in topological order (leaf-first)
+- Circular references produce =// ERROR: circular sub-SM reference detected=
+
+** PlantUML Generation (Col/PlantUml.elm)
+
+- Detect sub-SM states and render as =state SubSM { ... }= blocks
+- Recursively nest composite states (3+ levels supported)
+- State names aliased with prefix inside nested blocks to avoid PlantUML collisions
+- =makeNestedSystemString= handles multi-level nesting
+- Auto-update on blur and tab switch
+
+* Task List
+
+** DONE Update ModelData with Machine type and new Model shape
+- Add =Machine= type alias
+- Refactor =Model= to hold =machines : List Machine= and =activeMachine : Int=
+- Update =init= to create a single default machine
+- Adjust =convertToStringList=, =getAllStates= to work per-machine
+
+** DONE Update Main.elm for tab-based UI
+- Add tab bar rendering (machine names as clickable tabs)
+- Add =Msg= variants: =AddMachine=, =RemoveMachine Int=, =SwitchMachine Int=, =RenameMachine Int String=
+- Wire existing table UI to active machine's tableData
+- Update =UpdateField=, =AddRow=, =DelRow= to target active machine
+
+** DONE Update CppData for sub-SM aware code generation
+- Add helper to detect if a state name matches any other machine name
+- Inline =sml::state<SubSM>= in transition rows (no constexpr alias for sub-SM)
+- Add =generateAllStructs= that emits structs in dependency order (topological sort)
+- Update =generateFullCode= in Main to use new multi-struct generation
+
+** DONE Update PlantUml for nested composite states
+- Add function to detect sub-SM states
+- Recursive =makeNestedSystemString= embeds sub-SM content as =state X { ... }=
+- Aliased state names to avoid PlantUML scoping collisions
+- Fix 3-level nesting (sub-SM names not prefixed)
+- Auto-update diagram on blur/tab switch
+
+** DONE Update and fix tests
+- Full clean rewrite of tests/NewModel.elm and tests/Example.elm
+- Tests for sub-SM detection logic
+- Tests for dependency-ordered struct generation
+- Tests for nested PlantUML output
+- 26 tests passing

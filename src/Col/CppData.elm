@@ -1,18 +1,19 @@
 module Col.CppData exposing (make_cpp_data, includeHeader,
                             defaultName,makeConstexprClass,makeEventHeader
-                            ,makeFsmRowFromModel,makeFsmRowFromData)
+                            ,makeFsmRowFromMachine,makeFsmRowFromData
+                            ,isSubSM,generateAllStructs)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import List.Extra as ListExtra
 import Debug
-import Col.ModelData as MD exposing (Model,TableDataRow,RowData,Selected(..))
-
+import Col.ModelData as MD exposing (Machine,TableDataRow,RowData,Selected(..))
 
 
 
 endStateStr = "X"
 defaultName = "StateMachine"
 constexprFmt = "constexpr static auto {0} = sml::state<class {0}>;"
+wrapSubSm name = "sml::state<" ++ name ++ ">"
 eventFmt ="""
 struct {0} {};
 """
@@ -75,17 +76,30 @@ isNotEmpty str =
 --    Get the start and end state (index 0,1) and if they are unique
 --    Transform that into a string of type:
 --                            constexpr static auto <state> = sml::state<class <state>>
+--  For sub-SM references:
+--                            constexpr static auto <SubSM> = sml::state<SubSM>
 -- So this returns a  String
 -------------------------------------------------------------------------------
 
-interpolateStates: String -> String
-interpolateStates state =
+-------------------------------------------------------------------------------
+--                         Sub-SM Detection                                  --
+-------------------------------------------------------------------------------
 
-    "    " ++ (interpolate constexprFmt [state]) ++ "\n"
+isSubSM : List String -> String -> Bool
+isSubSM machineNames stateName =
+    List.member stateName machineNames
 
 
-makeConstexprClass: List (List String) -> String
-makeConstexprClass lstLstStr =
+interpolateStates: List String -> String -> String
+interpolateStates machineNames state =
+    if isSubSM machineNames state then
+        ""
+    else
+        "    " ++ (interpolate constexprFmt [state]) ++ "\n"
+
+
+makeConstexprClass: List String -> List (List String) -> String
+makeConstexprClass machineNames lstLstStr =
     let
         uniqStateLst = uniqueFields lstLstStr firstTwo
 
@@ -93,11 +107,79 @@ makeConstexprClass lstLstStr =
                                 "" -> prev
                                 "X" -> prev
                                 _ -> if String.startsWith "*" row then
-                                         prev ++ (interpolateStates (String.dropLeft 1 row))
+                                         prev ++ (interpolateStates machineNames (String.dropLeft 1 row))
                                      else
-                                         prev ++ (interpolateStates row)
+                                         prev ++ (interpolateStates machineNames row)
     in
         List.foldl (\rowStr prev -> checkStr rowStr prev) "" uniqStateLst
+
+
+-------------------------------------------------------------------------------
+--                     Topological Sort & Multi-Struct Generation            --
+-------------------------------------------------------------------------------
+
+-- | Get the sub-SM dependencies of a machine (states that match other machine names)
+getMachineDeps : List String -> Machine -> List String
+getMachineDeps machineNames machine =
+    let
+        allStates = MD.getAllStates machine
+    in
+    List.filter (\s -> isSubSM machineNames s && s /= machine.name) allStates
+
+
+-- | Topological sort of machines (leaf-first, root-last)
+-- Returns (sorted machines, has cycle)
+topologicalSort : List Machine -> (List Machine, Bool)
+topologicalSort machines =
+    let
+        machineNames = List.map .name machines
+
+        -- Simple iterative topological sort: repeatedly pick machines with no unresolved deps
+        go remaining sorted =
+            if List.isEmpty remaining then
+                (sorted, False)
+            else
+                let
+                    sortedNames = List.map .name sorted
+                    -- A machine is ready if all its deps are already in sorted
+                    isReady m =
+                        getMachineDeps machineNames m
+                            |> List.all (\dep -> List.member dep sortedNames)
+
+                    (ready, notReady) = List.partition isReady remaining
+                in
+                if List.isEmpty ready then
+                    -- Cycle detected: no machine can be resolved
+                    (sorted ++ remaining, True)
+                else
+                    go notReady (sorted ++ ready)
+    in
+    go machines []
+
+
+-- | Generate all structs in dependency order (leaf-first, root-last)
+-- If a cycle is detected, emits an error comment
+generateAllStructs : List Machine -> String
+generateAllStructs machines =
+    let
+        machineNames = List.map .name machines
+        (sortedMachines, hasCycle) = topologicalSort machines
+
+        cycleComment = if hasCycle then
+                           "// ERROR: circular sub-SM reference detected\n"
+                       else
+                           ""
+
+        generateOne machine =
+            let
+                stringList = MD.convertToStringList machine
+                stateClass = makeConstexprClass machineNames stringList
+                fsmRows = makeFsmRowFromMachine machineNames machine
+            in
+            make_cpp_data stateClass machine.name fsmRows
+    in
+    cycleComment ++ (List.map generateOne sortedMachines |> String.join "\n")
+
 
 firstTwo : List String -> List String
 firstTwo list =
@@ -244,14 +326,20 @@ handleStateTransition selected stateType =
 
 
 
-
-makeFsmRowFromData: RowData -> Int -> MD.Selected -> String
-makeFsmRowFromData rowData rowIdx selected =
+makeFsmRowFromData: List String -> RowData -> Int -> MD.Selected -> String
+makeFsmRowFromData machineNames rowData rowIdx selected =
     let
+        transformSubSM mState =
+            case mState of
+                Just s -> if isSubSM machineNames s then
+                              Just (wrapSubSm s)
+                          else
+                              Just s
+                Nothing -> Nothing
 
         resStr = makeFsmRowInternal rowIdx [
-                  handleStateTransition selected <| StartState <| rowData.startState
-                 ,handleStateTransition selected <| EndState <| rowData.endState
+                  handleStateTransition selected <| StartState <| transformSubSM rowData.startState
+                 ,handleStateTransition selected <| EndState <| transformSubSM rowData.endState
                  ,handleStateTransition selected <| Event <| rowData.event
                  ,handleStateTransition selected <| Guard <| rowData.guard
                  ,handleStateTransition selected <| Action <| rowData.action
@@ -260,16 +348,16 @@ makeFsmRowFromData rowData rowIdx selected =
         resStr
 
 
-makeFsmFromRowTable: TableDataRow -> String
-makeFsmFromRowTable tblDataRow =
-        makeFsmRowFromData tblDataRow.data  tblDataRow.rowIndex
+makeFsmFromRowTable: List String -> TableDataRow -> String
+makeFsmFromRowTable machineNames tblDataRow =
+        makeFsmRowFromData machineNames tblDataRow.data  tblDataRow.rowIndex
             <| Maybe.withDefault NO (MD.convertSelected tblDataRow.selected)
 
 
 
-makeFsmRowFromModel: MD.Model -> String
-makeFsmRowFromModel model =
-    List.map makeFsmFromRowTable model.tableData
+makeFsmRowFromMachine: List String -> Machine -> String
+makeFsmRowFromMachine machineNames machine =
+    List.map (makeFsmFromRowTable machineNames) machine.tableData
         |> String.concat
 
 -------------------------------------------------------------------------------
