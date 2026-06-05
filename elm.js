@@ -80,271 +80,6 @@ function A9(fun, a, b, c, d, e, f, g, h, i) {
 console.warn('Compiled in DEV mode. Follow the advice at https://elm-lang.org/0.19.1/optimize for better performance and smaller assets.');
 
 
-// EQUALITY
-
-function _Utils_eq(x, y)
-{
-	for (
-		var pair, stack = [], isEqual = _Utils_eqHelp(x, y, 0, stack);
-		isEqual && (pair = stack.pop());
-		isEqual = _Utils_eqHelp(pair.a, pair.b, 0, stack)
-		)
-	{}
-
-	return isEqual;
-}
-
-function _Utils_eqHelp(x, y, depth, stack)
-{
-	if (x === y)
-	{
-		return true;
-	}
-
-	if (typeof x !== 'object' || x === null || y === null)
-	{
-		typeof x === 'function' && _Debug_crash(5);
-		return false;
-	}
-
-	if (depth > 100)
-	{
-		stack.push(_Utils_Tuple2(x,y));
-		return true;
-	}
-
-	/**/
-	if (x.$ === 'Set_elm_builtin')
-	{
-		x = $elm$core$Set$toList(x);
-		y = $elm$core$Set$toList(y);
-	}
-	if (x.$ === 'RBNode_elm_builtin' || x.$ === 'RBEmpty_elm_builtin')
-	{
-		x = $elm$core$Dict$toList(x);
-		y = $elm$core$Dict$toList(y);
-	}
-	//*/
-
-	/**_UNUSED/
-	if (x.$ < 0)
-	{
-		x = $elm$core$Dict$toList(x);
-		y = $elm$core$Dict$toList(y);
-	}
-	//*/
-
-	for (var key in x)
-	{
-		if (!_Utils_eqHelp(x[key], y[key], depth + 1, stack))
-		{
-			return false;
-		}
-	}
-	return true;
-}
-
-var _Utils_equal = F2(_Utils_eq);
-var _Utils_notEqual = F2(function(a, b) { return !_Utils_eq(a,b); });
-
-
-
-// COMPARISONS
-
-// Code in Generate/JavaScript.hs, Basics.js, and List.js depends on
-// the particular integer values assigned to LT, EQ, and GT.
-
-function _Utils_cmp(x, y, ord)
-{
-	if (typeof x !== 'object')
-	{
-		return x === y ? /*EQ*/ 0 : x < y ? /*LT*/ -1 : /*GT*/ 1;
-	}
-
-	/**/
-	if (x instanceof String)
-	{
-		var a = x.valueOf();
-		var b = y.valueOf();
-		return a === b ? 0 : a < b ? -1 : 1;
-	}
-	//*/
-
-	/**_UNUSED/
-	if (typeof x.$ === 'undefined')
-	//*/
-	/**/
-	if (x.$[0] === '#')
-	//*/
-	{
-		return (ord = _Utils_cmp(x.a, y.a))
-			? ord
-			: (ord = _Utils_cmp(x.b, y.b))
-				? ord
-				: _Utils_cmp(x.c, y.c);
-	}
-
-	// traverse conses until end of a list or a mismatch
-	for (; x.b && y.b && !(ord = _Utils_cmp(x.a, y.a)); x = x.b, y = y.b) {} // WHILE_CONSES
-	return ord || (x.b ? /*GT*/ 1 : y.b ? /*LT*/ -1 : /*EQ*/ 0);
-}
-
-var _Utils_lt = F2(function(a, b) { return _Utils_cmp(a, b) < 0; });
-var _Utils_le = F2(function(a, b) { return _Utils_cmp(a, b) < 1; });
-var _Utils_gt = F2(function(a, b) { return _Utils_cmp(a, b) > 0; });
-var _Utils_ge = F2(function(a, b) { return _Utils_cmp(a, b) >= 0; });
-
-var _Utils_compare = F2(function(x, y)
-{
-	var n = _Utils_cmp(x, y);
-	return n < 0 ? $elm$core$Basics$LT : n ? $elm$core$Basics$GT : $elm$core$Basics$EQ;
-});
-
-
-// COMMON VALUES
-
-var _Utils_Tuple0_UNUSED = 0;
-var _Utils_Tuple0 = { $: '#0' };
-
-function _Utils_Tuple2_UNUSED(a, b) { return { a: a, b: b }; }
-function _Utils_Tuple2(a, b) { return { $: '#2', a: a, b: b }; }
-
-function _Utils_Tuple3_UNUSED(a, b, c) { return { a: a, b: b, c: c }; }
-function _Utils_Tuple3(a, b, c) { return { $: '#3', a: a, b: b, c: c }; }
-
-function _Utils_chr_UNUSED(c) { return c; }
-function _Utils_chr(c) { return new String(c); }
-
-
-// RECORDS
-
-function _Utils_update(oldRecord, updatedFields)
-{
-	var newRecord = {};
-
-	for (var key in oldRecord)
-	{
-		newRecord[key] = oldRecord[key];
-	}
-
-	for (var key in updatedFields)
-	{
-		newRecord[key] = updatedFields[key];
-	}
-
-	return newRecord;
-}
-
-
-// APPEND
-
-var _Utils_append = F2(_Utils_ap);
-
-function _Utils_ap(xs, ys)
-{
-	// append Strings
-	if (typeof xs === 'string')
-	{
-		return xs + ys;
-	}
-
-	// append Lists
-	if (!xs.b)
-	{
-		return ys;
-	}
-	var root = _List_Cons(xs.a, ys);
-	xs = xs.b
-	for (var curr = root; xs.b; xs = xs.b) // WHILE_CONS
-	{
-		curr = curr.b = _List_Cons(xs.a, ys);
-	}
-	return root;
-}
-
-
-
-var _List_Nil_UNUSED = { $: 0 };
-var _List_Nil = { $: '[]' };
-
-function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
-function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
-
-
-var _List_cons = F2(_List_Cons);
-
-function _List_fromArray(arr)
-{
-	var out = _List_Nil;
-	for (var i = arr.length; i--; )
-	{
-		out = _List_Cons(arr[i], out);
-	}
-	return out;
-}
-
-function _List_toArray(xs)
-{
-	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
-	{
-		out.push(xs.a);
-	}
-	return out;
-}
-
-var _List_map2 = F3(function(f, xs, ys)
-{
-	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
-	{
-		arr.push(A2(f, xs.a, ys.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map3 = F4(function(f, xs, ys, zs)
-{
-	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A3(f, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map4 = F5(function(f, ws, xs, ys, zs)
-{
-	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
-{
-	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
-	{
-		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
-	}
-	return _List_fromArray(arr);
-});
-
-var _List_sortBy = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		return _Utils_cmp(f(a), f(b));
-	}));
-});
-
-var _List_sortWith = F2(function(f, xs)
-{
-	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
-		var ord = A2(f, a, b);
-		return ord === $elm$core$Basics$EQ ? 0 : ord === $elm$core$Basics$LT ? -1 : 1;
-	}));
-});
-
-
-
 var _JsArray_empty = [];
 
 function _JsArray_singleton(value)
@@ -790,6 +525,271 @@ function _Debug_regionToString(region)
 	}
 	return 'on lines ' + region.start.line + ' through ' + region.end.line;
 }
+
+
+
+// EQUALITY
+
+function _Utils_eq(x, y)
+{
+	for (
+		var pair, stack = [], isEqual = _Utils_eqHelp(x, y, 0, stack);
+		isEqual && (pair = stack.pop());
+		isEqual = _Utils_eqHelp(pair.a, pair.b, 0, stack)
+		)
+	{}
+
+	return isEqual;
+}
+
+function _Utils_eqHelp(x, y, depth, stack)
+{
+	if (x === y)
+	{
+		return true;
+	}
+
+	if (typeof x !== 'object' || x === null || y === null)
+	{
+		typeof x === 'function' && _Debug_crash(5);
+		return false;
+	}
+
+	if (depth > 100)
+	{
+		stack.push(_Utils_Tuple2(x,y));
+		return true;
+	}
+
+	/**/
+	if (x.$ === 'Set_elm_builtin')
+	{
+		x = $elm$core$Set$toList(x);
+		y = $elm$core$Set$toList(y);
+	}
+	if (x.$ === 'RBNode_elm_builtin' || x.$ === 'RBEmpty_elm_builtin')
+	{
+		x = $elm$core$Dict$toList(x);
+		y = $elm$core$Dict$toList(y);
+	}
+	//*/
+
+	/**_UNUSED/
+	if (x.$ < 0)
+	{
+		x = $elm$core$Dict$toList(x);
+		y = $elm$core$Dict$toList(y);
+	}
+	//*/
+
+	for (var key in x)
+	{
+		if (!_Utils_eqHelp(x[key], y[key], depth + 1, stack))
+		{
+			return false;
+		}
+	}
+	return true;
+}
+
+var _Utils_equal = F2(_Utils_eq);
+var _Utils_notEqual = F2(function(a, b) { return !_Utils_eq(a,b); });
+
+
+
+// COMPARISONS
+
+// Code in Generate/JavaScript.hs, Basics.js, and List.js depends on
+// the particular integer values assigned to LT, EQ, and GT.
+
+function _Utils_cmp(x, y, ord)
+{
+	if (typeof x !== 'object')
+	{
+		return x === y ? /*EQ*/ 0 : x < y ? /*LT*/ -1 : /*GT*/ 1;
+	}
+
+	/**/
+	if (x instanceof String)
+	{
+		var a = x.valueOf();
+		var b = y.valueOf();
+		return a === b ? 0 : a < b ? -1 : 1;
+	}
+	//*/
+
+	/**_UNUSED/
+	if (typeof x.$ === 'undefined')
+	//*/
+	/**/
+	if (x.$[0] === '#')
+	//*/
+	{
+		return (ord = _Utils_cmp(x.a, y.a))
+			? ord
+			: (ord = _Utils_cmp(x.b, y.b))
+				? ord
+				: _Utils_cmp(x.c, y.c);
+	}
+
+	// traverse conses until end of a list or a mismatch
+	for (; x.b && y.b && !(ord = _Utils_cmp(x.a, y.a)); x = x.b, y = y.b) {} // WHILE_CONSES
+	return ord || (x.b ? /*GT*/ 1 : y.b ? /*LT*/ -1 : /*EQ*/ 0);
+}
+
+var _Utils_lt = F2(function(a, b) { return _Utils_cmp(a, b) < 0; });
+var _Utils_le = F2(function(a, b) { return _Utils_cmp(a, b) < 1; });
+var _Utils_gt = F2(function(a, b) { return _Utils_cmp(a, b) > 0; });
+var _Utils_ge = F2(function(a, b) { return _Utils_cmp(a, b) >= 0; });
+
+var _Utils_compare = F2(function(x, y)
+{
+	var n = _Utils_cmp(x, y);
+	return n < 0 ? $elm$core$Basics$LT : n ? $elm$core$Basics$GT : $elm$core$Basics$EQ;
+});
+
+
+// COMMON VALUES
+
+var _Utils_Tuple0_UNUSED = 0;
+var _Utils_Tuple0 = { $: '#0' };
+
+function _Utils_Tuple2_UNUSED(a, b) { return { a: a, b: b }; }
+function _Utils_Tuple2(a, b) { return { $: '#2', a: a, b: b }; }
+
+function _Utils_Tuple3_UNUSED(a, b, c) { return { a: a, b: b, c: c }; }
+function _Utils_Tuple3(a, b, c) { return { $: '#3', a: a, b: b, c: c }; }
+
+function _Utils_chr_UNUSED(c) { return c; }
+function _Utils_chr(c) { return new String(c); }
+
+
+// RECORDS
+
+function _Utils_update(oldRecord, updatedFields)
+{
+	var newRecord = {};
+
+	for (var key in oldRecord)
+	{
+		newRecord[key] = oldRecord[key];
+	}
+
+	for (var key in updatedFields)
+	{
+		newRecord[key] = updatedFields[key];
+	}
+
+	return newRecord;
+}
+
+
+// APPEND
+
+var _Utils_append = F2(_Utils_ap);
+
+function _Utils_ap(xs, ys)
+{
+	// append Strings
+	if (typeof xs === 'string')
+	{
+		return xs + ys;
+	}
+
+	// append Lists
+	if (!xs.b)
+	{
+		return ys;
+	}
+	var root = _List_Cons(xs.a, ys);
+	xs = xs.b
+	for (var curr = root; xs.b; xs = xs.b) // WHILE_CONS
+	{
+		curr = curr.b = _List_Cons(xs.a, ys);
+	}
+	return root;
+}
+
+
+
+var _List_Nil_UNUSED = { $: 0 };
+var _List_Nil = { $: '[]' };
+
+function _List_Cons_UNUSED(hd, tl) { return { $: 1, a: hd, b: tl }; }
+function _List_Cons(hd, tl) { return { $: '::', a: hd, b: tl }; }
+
+
+var _List_cons = F2(_List_Cons);
+
+function _List_fromArray(arr)
+{
+	var out = _List_Nil;
+	for (var i = arr.length; i--; )
+	{
+		out = _List_Cons(arr[i], out);
+	}
+	return out;
+}
+
+function _List_toArray(xs)
+{
+	for (var out = []; xs.b; xs = xs.b) // WHILE_CONS
+	{
+		out.push(xs.a);
+	}
+	return out;
+}
+
+var _List_map2 = F3(function(f, xs, ys)
+{
+	for (var arr = []; xs.b && ys.b; xs = xs.b, ys = ys.b) // WHILE_CONSES
+	{
+		arr.push(A2(f, xs.a, ys.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map3 = F4(function(f, xs, ys, zs)
+{
+	for (var arr = []; xs.b && ys.b && zs.b; xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A3(f, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map4 = F5(function(f, ws, xs, ys, zs)
+{
+	for (var arr = []; ws.b && xs.b && ys.b && zs.b; ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A4(f, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_map5 = F6(function(f, vs, ws, xs, ys, zs)
+{
+	for (var arr = []; vs.b && ws.b && xs.b && ys.b && zs.b; vs = vs.b, ws = ws.b, xs = xs.b, ys = ys.b, zs = zs.b) // WHILE_CONSES
+	{
+		arr.push(A5(f, vs.a, ws.a, xs.a, ys.a, zs.a));
+	}
+	return _List_fromArray(arr);
+});
+
+var _List_sortBy = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		return _Utils_cmp(f(a), f(b));
+	}));
+});
+
+var _List_sortWith = F2(function(f, xs)
+{
+	return _List_fromArray(_List_toArray(xs).sort(function(a, b) {
+		var ord = A2(f, a, b);
+		return ord === $elm$core$Basics$EQ ? 0 : ord === $elm$core$Basics$LT ? -1 : 1;
+	}));
+});
 
 
 
@@ -4508,10 +4508,32 @@ var _Regex_splitAtMost = F3(function(n, re, str)
 });
 
 var _Regex_infinity = Infinity;
-var $elm$core$Basics$EQ = {$: 'EQ'};
-var $elm$core$Basics$GT = {$: 'GT'};
-var $elm$core$Basics$LT = {$: 'LT'};
+var $author$project$Main$ConfirmReset = {$: 'ConfirmReset'};
 var $elm$core$List$cons = _List_cons;
+var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
+var $elm$core$Array$foldr = F3(
+	function (func, baseCase, _v0) {
+		var tree = _v0.c;
+		var tail = _v0.d;
+		var helper = F2(
+			function (node, acc) {
+				if (node.$ === 'SubTree') {
+					var subTree = node.a;
+					return A3($elm$core$Elm$JsArray$foldr, helper, acc, subTree);
+				} else {
+					var values = node.a;
+					return A3($elm$core$Elm$JsArray$foldr, func, acc, values);
+				}
+			});
+		return A3(
+			$elm$core$Elm$JsArray$foldr,
+			helper,
+			A3($elm$core$Elm$JsArray$foldr, func, baseCase, tail),
+			tree);
+	});
+var $elm$core$Array$toList = function (array) {
+	return A3($elm$core$Array$foldr, $elm$core$List$cons, _List_Nil, array);
+};
 var $elm$core$Dict$foldr = F3(
 	function (func, acc, t) {
 		foldr:
@@ -4564,30 +4586,9 @@ var $elm$core$Set$toList = function (_v0) {
 	var dict = _v0.a;
 	return $elm$core$Dict$keys(dict);
 };
-var $elm$core$Elm$JsArray$foldr = _JsArray_foldr;
-var $elm$core$Array$foldr = F3(
-	function (func, baseCase, _v0) {
-		var tree = _v0.c;
-		var tail = _v0.d;
-		var helper = F2(
-			function (node, acc) {
-				if (node.$ === 'SubTree') {
-					var subTree = node.a;
-					return A3($elm$core$Elm$JsArray$foldr, helper, acc, subTree);
-				} else {
-					var values = node.a;
-					return A3($elm$core$Elm$JsArray$foldr, func, acc, values);
-				}
-			});
-		return A3(
-			$elm$core$Elm$JsArray$foldr,
-			helper,
-			A3($elm$core$Elm$JsArray$foldr, func, baseCase, tail),
-			tree);
-	});
-var $elm$core$Array$toList = function (array) {
-	return A3($elm$core$Array$foldr, $elm$core$List$cons, _List_Nil, array);
-};
+var $elm$core$Basics$EQ = {$: 'EQ'};
+var $elm$core$Basics$GT = {$: 'GT'};
+var $elm$core$Basics$LT = {$: 'LT'};
 var $elm$core$Result$Err = function (a) {
 	return {$: 'Err', a: a};
 };
@@ -4983,6 +4984,10 @@ var $elm$core$Result$isOk = function (result) {
 		return false;
 	}
 };
+var $elm$json$Json$Decode$null = _Json_decodeNull;
+var $author$project$Main$confirmReset = _Platform_incomingPort(
+	'confirmReset',
+	$elm$json$Json$Decode$null(_Utils_Tuple0));
 var $elm$json$Json$Decode$map = _Json_map1;
 var $elm$json$Json$Decode$map2 = _Json_map2;
 var $elm$json$Json$Decode$succeed = _Json_succeed;
@@ -5297,6 +5302,13 @@ var $elm$core$Task$perform = F2(
 				A2($elm$core$Task$map, toMessage, task)));
 	});
 var $elm$browser$Browser$element = _Browser_element;
+var $elm$json$Json$Decode$decodeValue = _Json_run;
+var $elm$json$Json$Encode$null = _Json_encodeNull;
+var $author$project$Main$highlightCode = _Platform_outgoingPort(
+	'highlightCode',
+	function ($) {
+		return $elm$json$Json$Encode$null;
+	});
 var $author$project$Col$ModelData$defaultRowData = {action: $elm$core$Maybe$Nothing, endState: $elm$core$Maybe$Nothing, event: $elm$core$Maybe$Nothing, guard: $elm$core$Maybe$Nothing, startState: $elm$core$Maybe$Nothing};
 var $author$project$Col$ModelData$createTableDataRow = function (index) {
 	return {data: $author$project$Col$ModelData$defaultRowData, rowIndex: index, selected: 'No Special'};
@@ -5512,8 +5524,99 @@ var $author$project$Col$ModelData$init = function (_v0) {
 		},
 		$elm$core$Platform$Cmd$none);
 };
-var $elm$core$Platform$Sub$batch = _Platform_batch;
-var $elm$core$Platform$Sub$none = $elm$core$Platform$Sub$batch(_List_Nil);
+var $author$project$Col$ModelData$Model = F4(
+	function (machines, activeMachine, mainContent, contextTypes) {
+		return {activeMachine: activeMachine, contextTypes: contextTypes, machines: machines, mainContent: mainContent};
+	});
+var $elm$json$Json$Decode$field = _Json_decodeField;
+var $elm$json$Json$Decode$int = _Json_decodeInt;
+var $elm$json$Json$Decode$list = _Json_decodeList;
+var $author$project$Col$ModelData$Machine = F2(
+	function (name, tableData) {
+		return {name: name, tableData: tableData};
+	});
+var $elm$json$Json$Decode$string = _Json_decodeString;
+var $author$project$Col$ModelData$TableDataRow = F3(
+	function (rowIndex, selected, data) {
+		return {data: data, rowIndex: rowIndex, selected: selected};
+	});
+var $elm$json$Json$Decode$map3 = _Json_map3;
+var $author$project$Col$ModelData$RowData = F5(
+	function (startState, endState, event, guard, action) {
+		return {action: action, endState: endState, event: event, guard: guard, startState: startState};
+	});
+var $elm$json$Json$Decode$map5 = _Json_map5;
+var $elm$json$Json$Decode$oneOf = _Json_oneOf;
+var $elm$json$Json$Decode$nullable = function (decoder) {
+	return $elm$json$Json$Decode$oneOf(
+		_List_fromArray(
+			[
+				$elm$json$Json$Decode$null($elm$core$Maybe$Nothing),
+				A2($elm$json$Json$Decode$map, $elm$core$Maybe$Just, decoder)
+			]));
+};
+var $author$project$Col$ModelData$rowDataDecoder = A6(
+	$elm$json$Json$Decode$map5,
+	$author$project$Col$ModelData$RowData,
+	A2(
+		$elm$json$Json$Decode$field,
+		'startState',
+		$elm$json$Json$Decode$nullable($elm$json$Json$Decode$string)),
+	A2(
+		$elm$json$Json$Decode$field,
+		'endState',
+		$elm$json$Json$Decode$nullable($elm$json$Json$Decode$string)),
+	A2(
+		$elm$json$Json$Decode$field,
+		'event',
+		$elm$json$Json$Decode$nullable($elm$json$Json$Decode$string)),
+	A2(
+		$elm$json$Json$Decode$field,
+		'guard',
+		$elm$json$Json$Decode$nullable($elm$json$Json$Decode$string)),
+	A2(
+		$elm$json$Json$Decode$field,
+		'action',
+		$elm$json$Json$Decode$nullable($elm$json$Json$Decode$string)));
+var $author$project$Col$ModelData$tableDataRowDecoder = A4(
+	$elm$json$Json$Decode$map3,
+	$author$project$Col$ModelData$TableDataRow,
+	A2($elm$json$Json$Decode$field, 'rowIndex', $elm$json$Json$Decode$int),
+	A2($elm$json$Json$Decode$field, 'selected', $elm$json$Json$Decode$string),
+	A2($elm$json$Json$Decode$field, 'data', $author$project$Col$ModelData$rowDataDecoder));
+var $author$project$Col$ModelData$machineDecoder = A3(
+	$elm$json$Json$Decode$map2,
+	$author$project$Col$ModelData$Machine,
+	A2($elm$json$Json$Decode$field, 'name', $elm$json$Json$Decode$string),
+	A2(
+		$elm$json$Json$Decode$field,
+		'tableData',
+		$elm$json$Json$Decode$list($author$project$Col$ModelData$tableDataRowDecoder)));
+var $elm$json$Json$Decode$map4 = _Json_map4;
+var $author$project$Col$ModelData$modelDecoder = A5(
+	$elm$json$Json$Decode$map4,
+	$author$project$Col$ModelData$Model,
+	A2(
+		$elm$json$Json$Decode$field,
+		'machines',
+		$elm$json$Json$Decode$list($author$project$Col$ModelData$machineDecoder)),
+	A2($elm$json$Json$Decode$field, 'activeMachine', $elm$json$Json$Decode$int),
+	A2($elm$json$Json$Decode$field, 'mainContent', $elm$json$Json$Decode$string),
+	A2(
+		$elm$json$Json$Decode$field,
+		'contextTypes',
+		$elm$json$Json$Decode$list($elm$json$Json$Decode$string)));
+var $author$project$Main$initWithFlags = function (flags) {
+	var _v0 = A2($elm$json$Json$Decode$decodeValue, $author$project$Col$ModelData$modelDecoder, flags);
+	if (_v0.$ === 'Ok') {
+		var model = _v0.a;
+		return _Utils_Tuple2(
+			model,
+			$author$project$Main$highlightCode(_Utils_Tuple0));
+	} else {
+		return $author$project$Col$ModelData$init(_Utils_Tuple0);
+	}
+};
 var $author$project$Col$PlantUml$genSystem = F3(
 	function (name, uniqStates, fn) {
 		return {
@@ -6877,12 +6980,6 @@ var $author$project$Col$ModelData$getRootName = function (model) {
 			},
 			$elm$core$List$head(model.machines)));
 };
-var $elm$json$Json$Encode$null = _Json_encodeNull;
-var $author$project$Main$highlightCode = _Platform_outgoingPort(
-	'highlightCode',
-	function ($) {
-		return $elm$json$Json$Encode$null;
-	});
 var $elm$core$Basics$min = F2(
 	function (x, y) {
 		return (_Utils_cmp(x, y) < 0) ? x : y;
@@ -6892,6 +6989,99 @@ var $elm$core$Tuple$pair = F2(
 	function (a, b) {
 		return _Utils_Tuple2(a, b);
 	});
+var $author$project$Col$ModelData$encodeMaybe = F2(
+	function (encoder, maybe) {
+		if (maybe.$ === 'Just') {
+			var val = maybe.a;
+			return encoder(val);
+		} else {
+			return $elm$json$Json$Encode$null;
+		}
+	});
+var $author$project$Col$ModelData$encodeRowData = function (rd) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'startState',
+				A2($author$project$Col$ModelData$encodeMaybe, $elm$json$Json$Encode$string, rd.startState)),
+				_Utils_Tuple2(
+				'endState',
+				A2($author$project$Col$ModelData$encodeMaybe, $elm$json$Json$Encode$string, rd.endState)),
+				_Utils_Tuple2(
+				'event',
+				A2($author$project$Col$ModelData$encodeMaybe, $elm$json$Json$Encode$string, rd.event)),
+				_Utils_Tuple2(
+				'guard',
+				A2($author$project$Col$ModelData$encodeMaybe, $elm$json$Json$Encode$string, rd.guard)),
+				_Utils_Tuple2(
+				'action',
+				A2($author$project$Col$ModelData$encodeMaybe, $elm$json$Json$Encode$string, rd.action))
+			]));
+};
+var $elm$json$Json$Encode$int = _Json_wrap;
+var $author$project$Col$ModelData$encodeTableDataRow = function (row) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'rowIndex',
+				$elm$json$Json$Encode$int(row.rowIndex)),
+				_Utils_Tuple2(
+				'selected',
+				$elm$json$Json$Encode$string(row.selected)),
+				_Utils_Tuple2(
+				'data',
+				$author$project$Col$ModelData$encodeRowData(row.data))
+			]));
+};
+var $elm$json$Json$Encode$list = F2(
+	function (func, entries) {
+		return _Json_wrap(
+			A3(
+				$elm$core$List$foldl,
+				_Json_addEntry(func),
+				_Json_emptyArray(_Utils_Tuple0),
+				entries));
+	});
+var $author$project$Col$ModelData$encodeMachine = function (machine) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'name',
+				$elm$json$Json$Encode$string(machine.name)),
+				_Utils_Tuple2(
+				'tableData',
+				A2($elm$json$Json$Encode$list, $author$project$Col$ModelData$encodeTableDataRow, machine.tableData))
+			]));
+};
+var $author$project$Col$ModelData$encodeModel = function (model) {
+	return $elm$json$Json$Encode$object(
+		_List_fromArray(
+			[
+				_Utils_Tuple2(
+				'machines',
+				A2($elm$json$Json$Encode$list, $author$project$Col$ModelData$encodeMachine, model.machines)),
+				_Utils_Tuple2(
+				'activeMachine',
+				$elm$json$Json$Encode$int(model.activeMachine)),
+				_Utils_Tuple2(
+				'mainContent',
+				$elm$json$Json$Encode$string(model.mainContent)),
+				_Utils_Tuple2(
+				'contextTypes',
+				A2($elm$json$Json$Encode$list, $elm$json$Json$Encode$string, model.contextTypes))
+			]));
+};
+var $author$project$Main$saveModel = _Platform_outgoingPort('saveModel', $elm$json$Json$Encode$string);
+var $author$project$Main$save = function (model) {
+	return $author$project$Main$saveModel(
+		A2(
+			$elm$json$Json$Encode$encode,
+			0,
+			$author$project$Col$ModelData$encodeModel(model)));
+};
 var $author$project$Main$renameMachine = F3(
 	function (idx, newName, model) {
 		var updateMachineAt = function (machines) {
@@ -6918,7 +7108,12 @@ var $author$project$Main$renameMachine = F3(
 			}) : newModel;
 		return _Utils_Tuple2(
 			finalModel,
-			$author$project$Main$highlightCode(_Utils_Tuple0));
+			$elm$core$Platform$Cmd$batch(
+				_List_fromArray(
+					[
+						$author$project$Main$highlightCode(_Utils_Tuple0),
+						$author$project$Main$save(finalModel)
+					])));
 	});
 var $author$project$Main$renumberRows = function (rows) {
 	return A2(
@@ -6931,6 +7126,11 @@ var $author$project$Main$renumberRows = function (rows) {
 			}),
 		rows);
 };
+var $author$project$Main$requestConfirmReset = _Platform_outgoingPort(
+	'requestConfirmReset',
+	function ($) {
+		return $elm$json$Json$Encode$null;
+	});
 var $elm$core$Tuple$second = function (_v0) {
 	var y = _v0.b;
 	return y;
@@ -7196,12 +7396,35 @@ var $author$project$Main$update = F2(
 								}),
 							tableRows);
 					});
+				var newModel = A2(
+					$author$project$Col$ModelData$updateActiveMachineTableData,
+					model,
+					A3(updateRowAt, rowIndex, fieldIndex, newValue));
 				return _Utils_Tuple2(
-					A2(
-						$author$project$Col$ModelData$updateActiveMachineTableData,
-						model,
-						A3(updateRowAt, rowIndex, fieldIndex, newValue)),
-					$author$project$Main$highlightCode(_Utils_Tuple0));
+					newModel,
+					$elm$core$Platform$Cmd$batch(
+						_List_fromArray(
+							[
+								$author$project$Main$highlightCode(_Utils_Tuple0),
+								$author$project$Main$save(newModel)
+							])));
+			case 'RequestReset':
+				return _Utils_Tuple2(
+					model,
+					$author$project$Main$requestConfirmReset(_Utils_Tuple0));
+			case 'ConfirmReset':
+				var _v1 = $author$project$Col$ModelData$init(_Utils_Tuple0);
+				var freshModel = _v1.a;
+				return _Utils_Tuple2(
+					freshModel,
+					$elm$core$Platform$Cmd$batch(
+						_List_fromArray(
+							[
+								$author$project$Main$highlightCode(_Utils_Tuple0),
+								$author$project$Main$sendDiagram(
+								$author$project$Main$createPlantUmlDiagram(freshModel)),
+								$author$project$Main$save(freshModel)
+							])));
 			case 'RenameMachine':
 				var idx = msg.a;
 				var newName = msg.b;
@@ -7223,7 +7446,8 @@ var $author$project$Main$update = F2(
 							[
 								$author$project$Main$highlightCode(_Utils_Tuple0),
 								$author$project$Main$sendDiagram(
-								$author$project$Main$createPlantUmlDiagram(newModel))
+								$author$project$Main$createPlantUmlDiagram(newModel)),
+								$author$project$Main$save(newModel)
 							])));
 			case 'DeleteRow':
 				var idx = msg.a;
@@ -7234,8 +7458,8 @@ var $author$project$Main$update = F2(
 							$elm$core$Tuple$second,
 							A2(
 								$elm$core$List$filter,
-								function (_v1) {
-									var i = _v1.a;
+								function (_v2) {
+									var i = _v2.a;
 									return !_Utils_eq(i, idx);
 								},
 								A2($elm$core$List$indexedMap, $elm$core$Tuple$pair, tableData))));
@@ -7248,7 +7472,8 @@ var $author$project$Main$update = F2(
 							[
 								$author$project$Main$highlightCode(_Utils_Tuple0),
 								$author$project$Main$sendDiagram(
-								$author$project$Main$createPlantUmlDiagram(newModel))
+								$author$project$Main$createPlantUmlDiagram(newModel)),
+								$author$project$Main$save(newModel)
 							])));
 			case 'MoveRowUp':
 				var idx = msg.a;
@@ -7264,7 +7489,8 @@ var $author$project$Main$update = F2(
 							[
 								$author$project$Main$highlightCode(_Utils_Tuple0),
 								$author$project$Main$sendDiagram(
-								$author$project$Main$createPlantUmlDiagram(newModel))
+								$author$project$Main$createPlantUmlDiagram(newModel)),
+								$author$project$Main$save(newModel)
 							])));
 			case 'MoveRowDown':
 				var idx = msg.a;
@@ -7282,7 +7508,8 @@ var $author$project$Main$update = F2(
 							[
 								$author$project$Main$highlightCode(_Utils_Tuple0),
 								$author$project$Main$sendDiagram(
-								$author$project$Main$createPlantUmlDiagram(newModel))
+								$author$project$Main$createPlantUmlDiagram(newModel)),
+								$author$project$Main$save(newModel)
 							])));
 			case 'MakeUmlDiagram':
 				return _Utils_Tuple2(
@@ -7307,7 +7534,8 @@ var $author$project$Main$update = F2(
 							[
 								$author$project$Main$highlightCode(_Utils_Tuple0),
 								$author$project$Main$sendDiagram(
-								$author$project$Main$createPlantUmlDiagram(newModel))
+								$author$project$Main$createPlantUmlDiagram(newModel)),
+								$author$project$Main$save(newModel)
 							])));
 			case 'OpenCompilerExplorer':
 				return _Utils_Tuple2(
@@ -7348,7 +7576,8 @@ var $author$project$Main$update = F2(
 							[
 								$author$project$Main$highlightCode(_Utils_Tuple0),
 								$author$project$Main$sendDiagram(
-								$author$project$Main$createPlantUmlDiagram(newModel))
+								$author$project$Main$createPlantUmlDiagram(newModel)),
+								$author$project$Main$save(newModel)
 							])));
 			case 'RemoveMachine':
 				var idx = msg.a;
@@ -7372,7 +7601,8 @@ var $author$project$Main$update = F2(
 							[
 								$author$project$Main$highlightCode(_Utils_Tuple0),
 								$author$project$Main$sendDiagram(
-								$author$project$Main$createPlantUmlDiagram(newModel))
+								$author$project$Main$createPlantUmlDiagram(newModel)),
+								$author$project$Main$save(newModel)
 							])));
 			case 'SwitchMachine':
 				var idx = msg.a;
@@ -7381,8 +7611,13 @@ var $author$project$Main$update = F2(
 					{activeMachine: idx});
 				return _Utils_Tuple2(
 					newModel,
-					$author$project$Main$sendDiagram(
-						$author$project$Main$createPlantUmlDiagram(newModel)));
+					$elm$core$Platform$Cmd$batch(
+						_List_fromArray(
+							[
+								$author$project$Main$sendDiagram(
+								$author$project$Main$createPlantUmlDiagram(newModel)),
+								$author$project$Main$save(newModel)
+							])));
 			case 'AddContext':
 				var newContextTypes = _Utils_ap(
 					model.contextTypes,
@@ -7399,7 +7634,12 @@ var $author$project$Main$update = F2(
 					});
 				return _Utils_Tuple2(
 					newModel,
-					$author$project$Main$highlightCode(_Utils_Tuple0));
+					$elm$core$Platform$Cmd$batch(
+						_List_fromArray(
+							[
+								$author$project$Main$highlightCode(_Utils_Tuple0),
+								$author$project$Main$save(newModel)
+							])));
 			case 'RemoveContext':
 				var idx = msg.a;
 				var newContextTypes = _Utils_ap(
@@ -7416,7 +7656,12 @@ var $author$project$Main$update = F2(
 					});
 				return _Utils_Tuple2(
 					newModel,
-					$author$project$Main$highlightCode(_Utils_Tuple0));
+					$elm$core$Platform$Cmd$batch(
+						_List_fromArray(
+							[
+								$author$project$Main$highlightCode(_Utils_Tuple0),
+								$author$project$Main$save(newModel)
+							])));
 			default:
 				var idx = msg.a;
 				var newValue = msg.b;
@@ -7438,13 +7683,20 @@ var $author$project$Main$update = F2(
 					});
 				return _Utils_Tuple2(
 					newModel,
-					$author$project$Main$highlightCode(_Utils_Tuple0));
+					$elm$core$Platform$Cmd$batch(
+						_List_fromArray(
+							[
+								$author$project$Main$highlightCode(_Utils_Tuple0),
+								$author$project$Main$save(newModel)
+							])));
 		}
 	});
+var $elm$json$Json$Decode$value = _Json_decodeValue;
 var $author$project$Main$AddRow = {$: 'AddRow'};
 var $author$project$Main$DownloadCode = {$: 'DownloadCode'};
 var $author$project$Main$MakeUmlDiagram = {$: 'MakeUmlDiagram'};
 var $author$project$Main$OpenCompilerExplorer = {$: 'OpenCompilerExplorer'};
+var $author$project$Main$RequestReset = {$: 'RequestReset'};
 var $elm$html$Html$button = _VirtualDom_node('button');
 var $elm$html$Html$div = _VirtualDom_node('div');
 var $author$project$Col$ModelData$getActiveMachine = function (model) {
@@ -7555,12 +7807,10 @@ var $elm$html$Html$Events$stopPropagationOn = F2(
 			event,
 			$elm$virtual_dom$VirtualDom$MayStopPropagation(decoder));
 	});
-var $elm$json$Json$Decode$field = _Json_decodeField;
 var $elm$json$Json$Decode$at = F2(
 	function (fields, decoder) {
 		return A3($elm$core$List$foldr, $elm$json$Json$Decode$field, decoder, fields);
 	});
-var $elm$json$Json$Decode$string = _Json_decodeString;
 var $elm$html$Html$Events$targetValue = A2(
 	$elm$json$Json$Decode$at,
 	_List_fromArray(
@@ -8286,17 +8536,32 @@ var $author$project$Main$view = function (model) {
 				_List_fromArray(
 					[
 						$elm$html$Html$text('Download Code')
+					])),
+				A2(
+				$elm$html$Html$button,
+				_List_fromArray(
+					[
+						$elm$html$Html$Events$onClick($author$project$Main$RequestReset),
+						A2($elm$html$Html$Attributes$style, 'margin-left', '10px'),
+						A2($elm$html$Html$Attributes$style, 'background-color', '#dc2626'),
+						A2($elm$html$Html$Attributes$style, 'color', 'white')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text('Reset')
 					]))
 			]));
 };
 var $author$project$Main$main = $elm$browser$Browser$element(
 	{
-		init: $author$project$Col$ModelData$init,
+		init: $author$project$Main$initWithFlags,
 		subscriptions: function (_v0) {
-			return $elm$core$Platform$Sub$none;
+			return $author$project$Main$confirmReset(
+				function (_v1) {
+					return $author$project$Main$ConfirmReset;
+				});
 		},
 		update: $author$project$Main$update,
 		view: $author$project$Main$view
 	});
-_Platform_export({'Main':{'init':$author$project$Main$main(
-	$elm$json$Json$Decode$succeed(_Utils_Tuple0))(0)}});}(this));
+_Platform_export({'Main':{'init':$author$project$Main$main($elm$json$Json$Decode$value)(0)}});}(this));

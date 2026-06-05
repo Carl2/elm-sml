@@ -9,9 +9,11 @@ import Html.Keyed as Keyed
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput,onClick,onBlur)
 import Col.PlantUml as PU
-import Col.ModelData as MD exposing (Model,Machine,TableDataRow,RowData,convertToStringList,init,getActiveMachine,getMachineNames,getRootName,updateActiveMachineTableData)
+import Col.ModelData as MD exposing (Model,Machine,TableDataRow,RowData,convertToStringList,init,getActiveMachine,getMachineNames,getRootName,updateActiveMachineTableData,encodeModel,modelDecoder)
 import Col.Default as DF
 import Tuple
+import Json.Encode as E
+import Json.Decode as D
 
 
 -- Ports to javascript
@@ -19,6 +21,9 @@ port sendDiagram : String -> Cmd msg
 port highlightCode : () -> Cmd msg
 port openCompilerExplorer : String -> Cmd msg
 port downloadFile : { filename : String, content : String } -> Cmd msg
+port saveModel : String -> Cmd msg
+port requestConfirmReset : () -> Cmd msg
+port confirmReset : (() -> msg) -> Sub msg
 
 type Msg
     = UpdateField Int Int String
@@ -38,6 +43,13 @@ type Msg
       | AddContext
       | RemoveContext Int
       | UpdateContext Int String
+      | RequestReset
+      | ConfirmReset
+
+
+save : Model -> Cmd msg
+save model =
+    saveModel (E.encode 0 (encodeModel model))
 
 
 
@@ -59,9 +71,16 @@ update msg model =
                                  tableDataRow -- No change
                         )
                         tableRows
+                newModel = updateActiveMachineTableData model (updateRowAt rowIndex fieldIndex newValue)
             in
-                (updateActiveMachineTableData model (updateRowAt rowIndex fieldIndex newValue), highlightCode ())
+            (newModel, Cmd.batch [highlightCode (), save newModel])
 
+        RequestReset ->
+            (model, requestConfirmReset ())
+
+        ConfirmReset ->
+            let (freshModel, _) = init ()
+            in (freshModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram freshModel, save freshModel])
         RenameMachine idx newName ->
             renameMachine idx newName model
 
@@ -75,7 +94,7 @@ update msg model =
                     tableData ++ [newRow]
                 newModel = updateActiveMachineTableData model addNewRow
             in
-            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel, save newModel])
 
         DeleteRow idx ->
             let
@@ -86,7 +105,7 @@ update msg model =
                         |> renumberRows
                 newModel = updateActiveMachineTableData model removeAt
             in
-            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel, save newModel])
 
         MoveRowUp idx ->
             let
@@ -95,7 +114,7 @@ update msg model =
                     else swapAt (idx - 1) idx tableData |> renumberRows
                 newModel = updateActiveMachineTableData model swapUp
             in
-            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel, save newModel])
 
         MoveRowDown idx ->
             let
@@ -104,7 +123,7 @@ update msg model =
                     else swapAt idx (idx + 1) tableData |> renumberRows
                 newModel = updateActiveMachineTableData model swapDown
             in
-            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel, save newModel])
 
         MakeUmlDiagram ->
             (model, sendDiagram <| createPlantUmlDiagram model)
@@ -114,7 +133,7 @@ update msg model =
 
         UpdateSelection rowIdx select ->
             let newModel = MD.updateSelected model rowIdx select
-            in (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+            in (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel, save newModel])
 
         OpenCompilerExplorer ->
             (model, openCompilerExplorer (generateFullCode model))
@@ -130,7 +149,7 @@ update msg model =
                 newMachine = { name = "NewMachine", tableData = List.map (\i -> { rowIndex = i, selected = "No Special", data = MD.defaultRowData }) (List.range 0 4) }
                 newModel = { model | machines = model.machines ++ [newMachine], activeMachine = List.length model.machines }
             in
-            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel, save newModel])
 
         RemoveMachine idx ->
             let
@@ -143,11 +162,11 @@ update msg model =
                             |> Basics.max 0
                 newModel = { model | machines = newMachines, activeMachine = newActive }
             in
-            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel, save newModel])
 
         SwitchMachine idx ->
             let newModel = { model | activeMachine = idx }
-            in (newModel, sendDiagram <| createPlantUmlDiagram newModel)
+            in (newModel, Cmd.batch [sendDiagram <| createPlantUmlDiagram newModel, save newModel])
 
         AddContext ->
             let
@@ -155,7 +174,7 @@ update msg model =
                 newModel = { model | contextTypes = newContextTypes
                            , mainContent = DF.makeMain (getRootName model) newContextTypes }
             in
-            (newModel, highlightCode ())
+            (newModel, Cmd.batch [highlightCode (), save newModel])
 
         RemoveContext idx ->
             let
@@ -163,7 +182,7 @@ update msg model =
                 newModel = { model | contextTypes = newContextTypes
                            , mainContent = DF.makeMain (getRootName model) newContextTypes }
             in
-            (newModel, highlightCode ())
+            (newModel, Cmd.batch [highlightCode (), save newModel])
 
         UpdateContext idx newValue ->
             let
@@ -172,7 +191,7 @@ update msg model =
                 newModel = { model | contextTypes = newContextTypes
                            , mainContent = DF.makeMain (getRootName model) newContextTypes }
             in
-            (newModel, highlightCode ())
+            (newModel, Cmd.batch [highlightCode (), save newModel])
 
 
 
@@ -223,7 +242,7 @@ renameMachine idx newName model =
             else
                 newModel
     in
-    (finalModel, highlightCode ())
+    (finalModel, Cmd.batch [highlightCode (), save finalModel])
 
 
 view : Model -> Html Msg
@@ -249,6 +268,7 @@ view model =
         , button [onClick MakeUmlDiagram] [text "Make Uml Diagram" ]
         , button [onClick OpenCompilerExplorer, style "margin-left" "10px"] [text "Compiler Explorer" ]
         , button [onClick DownloadCode, style "margin-left" "10px"] [text "Download Code" ]
+        , button [onClick RequestReset, style "margin-left" "10px", style "background-color" "#dc2626", style "color" "white"] [text "Reset" ]
         ]
 
 
@@ -412,11 +432,21 @@ makeMainOutput model =
 
 main =
     Browser.element {
-            init = init
+            init = initWithFlags
                 ,update = update
                 ,view = view
-                ,subscriptions = \_ -> Sub.none
+                ,subscriptions = \_ -> confirmReset (\_ -> ConfirmReset)
         }
+
+
+initWithFlags : D.Value -> (Model, Cmd msg)
+initWithFlags flags =
+    case D.decodeValue modelDecoder flags of
+        Ok model ->
+            (model, highlightCode ())
+
+        Err _ ->
+            init ()
 
 
 -------------------------------------------------------------------------------

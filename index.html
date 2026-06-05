@@ -39,8 +39,23 @@
     <script src="extra/prism.js"></script>
     <script src="elm.js"></script>
     <script>
+        var saved = localStorage.getItem("elm-sml-model");
+        var flags = saved ? JSON.parse(saved) : null;
         var app = Elm.Main.init({
-            node: document.getElementById("elm-app")
+            node: document.getElementById("elm-app"),
+            flags: flags
+        });
+
+        // Port handler for saving model to localStorage
+        app.ports.saveModel.subscribe(function(json) {
+            localStorage.setItem("elm-sml-model", json);
+        });
+
+        // Port handler for reset confirmation
+        app.ports.requestConfirmReset.subscribe(function() {
+            if (confirm("Reset all data? This cannot be undone.")) {
+                app.ports.confirmReset.send(null);
+            }
         });
 
         // Port handler for syntax highlighting

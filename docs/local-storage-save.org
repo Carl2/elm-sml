@@ -1,0 +1,131 @@
+#+TITLE: Feature: Local Storage Auto-Save
+#+AUTHOR: Carl Olsen
+#+DATE: 2026-06-05
+
+* Feature Overview
+
+Persist the entire model (machines, context types, main content) to browser
+localStorage on every change. Restore automatically on page load so the user
+never loses their work after a reload.
+
+* Goals and Non-Goals
+
+** Goals
+- Auto-save on every model change (no manual "save" button needed)
+- Restore full state on page reload (machines, tabs, context types, main content)
+- Zero friction -- user doesn't need to do anything
+
+** Non-Goals
+- No export/import to JSON file (future feature)
+- No server-side persistence
+- No versioning or undo history
+- No multi-tab sync (last write wins)
+
+* Constraints and Assumptions
+
+- Elm 0.19.1 has no direct localStorage access; must use ports
+- localStorage limit is ~5-10MB per origin (more than enough for our model)
+- Static deployment to nginx (no backend)
+- Current init signature: ~init : () -> (Model, Cmd msg)~
+- Current JS init: ~Elm.Main.init({ node: ... })~ with no flags
+
+* Risks and Open Questions
+
+| Risk/Question                     | Mitigation                                        |
+|-----------------------------------+---------------------------------------------------|
+| Schema changes break saved data   | Decoder falls back to default model on failure    |
+| Large tables slow down save       | Unlikely; JSON encode is fast for this data size  |
+| localStorage unavailable          | Graceful fallback to default model (private mode) |
+
+* High-Level Architecture
+
+** Save Flow
+1. Every branch in ~update~ that modifies the model emits ~saveModel (encodeModel newModel)~
+2. JS subscribes to ~port saveModel~ and writes to ~localStorage.setItem("elm-sml-model", json)~
+
+** Load Flow
+1. JS reads ~localStorage.getItem("elm-sml-model")~ before Elm init
+2. Passes the raw JSON string (or null) as flags to ~Elm.Main.init({ flags: saved })~
+3. Elm ~init~ accepts ~Json.Decode.Value~ flag, attempts decode
+4. On decode success: use restored model
+5. On decode failure (null, corrupt, schema mismatch): use default model
+
+** Data to Persist
+All fields of ~Model~:
+- ~machines : List Machine~ (name + tableData with rowIndex, selected, RowData)
+- ~activeMachine : Int~
+- ~mainContent : String~
+- ~contextTypes : List String~
+
+** JSON Shape (example)
+#+BEGIN_SRC json
+{
+  "machines": [
+    {
+      "name": "StateMachine",
+      "tableData": [
+        {
+          "rowIndex": 0,
+          "selected": "No Special",
+          "data": {
+            "startState": "A",
+            "endState": "B",
+            "event": "ev1",
+            "guard": null,
+            "action": "doStuff"
+          }
+        }
+      ]
+    }
+  ],
+  "activeMachine": 0,
+  "mainContent": "int main() { ... }",
+  "contextTypes": ["MyCtx"]
+}
+#+END_SRC
+
+* Files to Change
+
+| File                   | Change                                              |
+|------------------------+-----------------------------------------------------|
+| ~src/Col/ModelData.elm~  | Add JSON encoder + decoder for Model/Machine/etc    |
+| ~src/Main.elm~           | Add ~port saveModel~, change init to accept flags,    |
+|                        | emit saveModel cmd on every model-modifying update  |
+| ~index.html~             | Read localStorage, pass as flag, subscribe to port  |
+| ~tests/NewModel.elm~     | Test encode/decode round-trip                       |
+
+* Tasks
+
+** TODO Add JSON encoder for Model in ModelData.elm
+- ~encodeModel : Model -> Json.Encode.Value~
+- Encode all nested types (Machine, TableDataRow, RowData)
+- Maybe String fields encode as JSON null or string
+
+** TODO Add JSON decoder for Model in ModelData.elm
+- ~modelDecoder : Json.Decode.Decoder Model~
+- Decode all nested types
+- Handle Maybe fields gracefully
+
+** TODO Change init to accept flags (Json.Decode.Value)
+- ~init : Json.Decode.Value -> (Model, Cmd msg)~
+- Attempt ~Json.Decode.decodeValue modelDecoder flags~
+- On ~Ok model~ -> use restored model
+- On ~Err _~ -> use default model (current behavior)
+
+** TODO Add port saveModel in Main.elm
+- ~port saveModel : String -> Cmd msg~
+- Helper: ~save model = saveModel (Json.Encode.encode 0 (encodeModel model))~
+
+** TODO Emit saveModel on every model-modifying update branch
+- All branches except ~MakeUmlDiagram~ and ~OpenCompilerExplorer~ should
+  include ~save~ in their Cmd.batch
+- ~DownloadCode~ probably doesn't need save either (model unchanged)
+
+** TODO Wire up localStorage in index.html
+- Before init: ~var saved = localStorage.getItem("elm-sml-model");~
+- Init with flags: ~Elm.Main.init({ node: ..., flags: saved })~
+- Subscribe: ~app.ports.saveModel.subscribe(function(json) { localStorage.setItem("elm-sml-model", json); })~
+
+** TODO Add round-trip test for encode/decode
+- Encode a known model, decode it back, verify equality
+- Test that decode failure returns default model

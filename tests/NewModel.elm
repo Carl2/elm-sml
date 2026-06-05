@@ -1,4 +1,4 @@
-module NewModel exposing (testPlantuml,testExtract,testSubSm,testContextInjection,testRowOperations)
+module NewModel exposing (testPlantuml,testExtract,testSubSm,testContextInjection,testRowOperations,testLocalStorage)
 
 import Col.ModelData exposing (..)
 import Expect
@@ -7,6 +7,8 @@ import Col.CppData exposing(..)
 import Col.PlantUml as PU
 import Col.Default as DF
 import Main exposing (update, Msg(..))
+import Json.Decode as D
+import Json.Encode as E
 
 
 testMachine : Machine
@@ -575,4 +577,77 @@ testRowOperations =
                     (newModel, _) = update (MoveRowDown 2) baseModel
                 in
                 Expect.equal ["A", "B", "C"] (getStartStates newModel)
+        ]
+
+
+testLocalStorage : Test
+testLocalStorage =
+    describe "localStorage encode/decode"
+        [ test "round-trip: encode then decode restores model" <|
+            \_ ->
+                let
+                    model =
+                        { machines =
+                            [ { name = "Root"
+                              , tableData =
+                                    [ { rowIndex = 0
+                                      , selected = "No Special"
+                                      , data =
+                                            { startState = Just "Idle"
+                                            , endState = Just "Running"
+                                            , event = Just "start"
+                                            , guard = Nothing
+                                            , action = Just "doStart"
+                                            }
+                                      }
+                                    , { rowIndex = 1
+                                      , selected = "On Entry"
+                                      , data =
+                                            { startState = Just "Running"
+                                            , endState = Nothing
+                                            , event = Just "tick"
+                                            , guard = Just "isReady"
+                                            , action = Nothing
+                                            }
+                                      }
+                                    ]
+                              }
+                            , { name = "ChildSM"
+                              , tableData =
+                                    [ { rowIndex = 0
+                                      , selected = "No Special"
+                                      , data =
+                                            { startState = Just "C1"
+                                            , endState = Just "C2"
+                                            , event = Just "ev1"
+                                            , guard = Nothing
+                                            , action = Nothing
+                                            }
+                                      }
+                                    ]
+                              }
+                            ]
+                        , activeMachine = 1
+                        , mainContent = "int main() {}"
+                        , contextTypes = ["MyCtx", "Logger"]
+                        }
+                    encoded = E.encode 0 (encodeModel model)
+                    decoded = D.decodeString modelDecoder encoded
+                in
+                Expect.equal (Ok model) decoded
+
+        , test "decode failure returns Err" <|
+            \_ ->
+                let
+                    badJson = "{\"garbage\": true}"
+                    decoded = D.decodeString modelDecoder badJson
+                in
+                Expect.err decoded
+
+        , test "decode null returns Err" <|
+            \_ ->
+                let
+                    decoded = D.decodeString modelDecoder "null"
+                in
+                Expect.err decoded
         ]

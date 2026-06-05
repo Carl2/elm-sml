@@ -1,20 +1,24 @@
 module Col.ModelData exposing (Model,Machine,TableDataRow,RowData,Selected(..)
-                                   ,defaultRowData
-                                   ,convertToStringList
-                                   ,init
-                                   ,rowDataToStringList
-                                   ,updateDataAtIndex
-                                   ,updateSelected
-                                   ,convertSelected
-                                   ,getAllStates
-                                   ,getActiveMachine
-                                   ,getMachineNames
-                                   ,getRootName
-                                   ,updateActiveMachineTableData
-                              )
+                                    ,defaultRowData
+                                    ,convertToStringList
+                                    ,init
+                                    ,rowDataToStringList
+                                    ,updateDataAtIndex
+                                    ,updateSelected
+                                    ,convertSelected
+                                    ,getAllStates
+                                    ,getActiveMachine
+                                    ,getMachineNames
+                                    ,getRootName
+                                    ,updateActiveMachineTableData
+                                    ,encodeModel
+                                    ,modelDecoder
+                               )
 import Maybe
 import Set
 import Col.Default as DF
+import Json.Encode as E
+import Json.Decode as D
 
 invalidStateNames = ["x", "X", ""]
 
@@ -205,3 +209,90 @@ getAllStates machine =
         validStrings states = List.map (\state -> Maybe.withDefault "" state) <| onlyValidStates states
     in
         Set.toList <| Set.fromList  <|validStrings maybeStates
+
+
+-------------------------------------------------------------------------------
+-- JSON Encoder
+-------------------------------------------------------------------------------
+
+encodeMaybe : (a -> E.Value) -> Maybe a -> E.Value
+encodeMaybe encoder maybe =
+    case maybe of
+        Just val -> encoder val
+        Nothing -> E.null
+
+
+encodeRowData : RowData -> E.Value
+encodeRowData rd =
+    E.object
+        [ ("startState", encodeMaybe E.string rd.startState)
+        , ("endState", encodeMaybe E.string rd.endState)
+        , ("event", encodeMaybe E.string rd.event)
+        , ("guard", encodeMaybe E.string rd.guard)
+        , ("action", encodeMaybe E.string rd.action)
+        ]
+
+
+encodeTableDataRow : TableDataRow -> E.Value
+encodeTableDataRow row =
+    E.object
+        [ ("rowIndex", E.int row.rowIndex)
+        , ("selected", E.string row.selected)
+        , ("data", encodeRowData row.data)
+        ]
+
+
+encodeMachine : Machine -> E.Value
+encodeMachine machine =
+    E.object
+        [ ("name", E.string machine.name)
+        , ("tableData", E.list encodeTableDataRow machine.tableData)
+        ]
+
+
+encodeModel : Model -> E.Value
+encodeModel model =
+    E.object
+        [ ("machines", E.list encodeMachine model.machines)
+        , ("activeMachine", E.int model.activeMachine)
+        , ("mainContent", E.string model.mainContent)
+        , ("contextTypes", E.list E.string model.contextTypes)
+        ]
+
+
+-------------------------------------------------------------------------------
+-- JSON Decoder
+-------------------------------------------------------------------------------
+
+rowDataDecoder : D.Decoder RowData
+rowDataDecoder =
+    D.map5 RowData
+        (D.field "startState" (D.nullable D.string))
+        (D.field "endState" (D.nullable D.string))
+        (D.field "event" (D.nullable D.string))
+        (D.field "guard" (D.nullable D.string))
+        (D.field "action" (D.nullable D.string))
+
+
+tableDataRowDecoder : D.Decoder TableDataRow
+tableDataRowDecoder =
+    D.map3 TableDataRow
+        (D.field "rowIndex" D.int)
+        (D.field "selected" D.string)
+        (D.field "data" rowDataDecoder)
+
+
+machineDecoder : D.Decoder Machine
+machineDecoder =
+    D.map2 Machine
+        (D.field "name" D.string)
+        (D.field "tableData" (D.list tableDataRowDecoder))
+
+
+modelDecoder : D.Decoder Model
+modelDecoder =
+    D.map4 Model
+        (D.field "machines" (D.list machineDecoder))
+        (D.field "activeMachine" D.int)
+        (D.field "mainContent" D.string)
+        (D.field "contextTypes" (D.list D.string))
