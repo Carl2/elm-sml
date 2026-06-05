@@ -382,10 +382,36 @@ forEachField rowIndex tableDataRow =
 
 
 
+isInternalTransition : TableDataRow -> Bool
+isInternalTransition tableDataRow =
+    let
+        hasStart = tableDataRow.data.startState /= Nothing && tableDataRow.data.startState /= Just ""
+        hasNoEnd = tableDataRow.data.endState == Nothing || tableDataRow.data.endState == Just ""
+        notSpecial = String.toLower tableDataRow.selected == "no special"
+        hasContent = tableDataRow.data.event /= Nothing && tableDataRow.data.event /= Just ""
+                     || tableDataRow.data.guard /= Nothing && tableDataRow.data.guard /= Just ""
+                     || tableDataRow.data.action /= Nothing && tableDataRow.data.action /= Just ""
+    in
+    hasStart && hasNoEnd && notSpecial && hasContent
+
+
 makeModelTable: Model -> Machine -> List (Html Msg)
 makeModelTable model machine =
     let
-        forEachRow tableDatas = List.indexedMap (\rowIndex tableData -> tr [] (forEachField rowIndex tableData) ) tableDatas
+        rowStyle tableDataRow =
+            if isInternalTransition tableDataRow then
+                [style "background-color" "#B45309", title "Internal transition"]
+            else
+                []
+
+        internalLabel tableDataRow =
+            if isInternalTransition tableDataRow then
+                [td [style "color" "white", style "font-size" "11px", style "padding-left" "8px"]
+                    [text "internal"]]
+            else
+                []
+
+        forEachRow tableDatas = List.indexedMap (\rowIndex tableData -> tr (rowStyle tableData) (forEachField rowIndex tableData ++ internalLabel tableData) ) tableDatas
     in
         makeHeader ++ [Html.tbody [] (forEachRow machine.tableData)]
 

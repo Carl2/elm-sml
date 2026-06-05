@@ -7575,6 +7575,23 @@ var $author$project$Main$forEachField = F2(
 				fields),
 			onSpecial(rowIndex));
 	});
+var $author$project$Main$isInternalTransition = function (tableDataRow) {
+	var notSpecial = $elm$core$String$toLower(tableDataRow.selected) === 'no special';
+	var hasStart = (!_Utils_eq(tableDataRow.data.startState, $elm$core$Maybe$Nothing)) && (!_Utils_eq(
+		tableDataRow.data.startState,
+		$elm$core$Maybe$Just('')));
+	var hasNoEnd = _Utils_eq(tableDataRow.data.endState, $elm$core$Maybe$Nothing) || _Utils_eq(
+		tableDataRow.data.endState,
+		$elm$core$Maybe$Just(''));
+	var hasContent = ((!_Utils_eq(tableDataRow.data.event, $elm$core$Maybe$Nothing)) && (!_Utils_eq(
+		tableDataRow.data.event,
+		$elm$core$Maybe$Just('')))) || (((!_Utils_eq(tableDataRow.data.guard, $elm$core$Maybe$Nothing)) && (!_Utils_eq(
+		tableDataRow.data.guard,
+		$elm$core$Maybe$Just('')))) || ((!_Utils_eq(tableDataRow.data.action, $elm$core$Maybe$Nothing)) && (!_Utils_eq(
+		tableDataRow.data.action,
+		$elm$core$Maybe$Just('')))));
+	return hasStart && (hasNoEnd && (notSpecial && hasContent));
+};
 var $elm$html$Html$caption = _VirtualDom_node('caption');
 var $elm$html$Html$th = _VirtualDom_node('th');
 var $elm$html$Html$thead = _VirtualDom_node('thead');
@@ -7668,8 +7685,33 @@ var $author$project$Main$makeHeader = _List_fromArray(
 			]))
 	]);
 var $elm$html$Html$tbody = _VirtualDom_node('tbody');
+var $elm$html$Html$Attributes$title = $elm$html$Html$Attributes$stringProperty('title');
 var $author$project$Main$makeModelTable = F2(
 	function (model, machine) {
+		var rowStyle = function (tableDataRow) {
+			return $author$project$Main$isInternalTransition(tableDataRow) ? _List_fromArray(
+				[
+					A2($elm$html$Html$Attributes$style, 'background-color', '#B45309'),
+					$elm$html$Html$Attributes$title('Internal transition')
+				]) : _List_Nil;
+		};
+		var internalLabel = function (tableDataRow) {
+			return $author$project$Main$isInternalTransition(tableDataRow) ? _List_fromArray(
+				[
+					A2(
+					$elm$html$Html$td,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'color', 'white'),
+							A2($elm$html$Html$Attributes$style, 'font-size', '11px'),
+							A2($elm$html$Html$Attributes$style, 'padding-left', '8px')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('internal')
+						]))
+				]) : _List_Nil;
+		};
 		var forEachRow = function (tableDatas) {
 			return A2(
 				$elm$core$List$indexedMap,
@@ -7677,8 +7719,10 @@ var $author$project$Main$makeModelTable = F2(
 					function (rowIndex, tableData) {
 						return A2(
 							$elm$html$Html$tr,
-							_List_Nil,
-							A2($author$project$Main$forEachField, rowIndex, tableData));
+							rowStyle(tableData),
+							_Utils_ap(
+								A2($author$project$Main$forEachField, rowIndex, tableData),
+								internalLabel(tableData)));
 					}),
 				tableDatas);
 		};

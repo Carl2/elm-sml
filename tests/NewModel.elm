@@ -201,6 +201,23 @@ testExtract =
                     listStates = getAllStates testMachine
                 in
                     listStates |> Expect.equal ["endState1","endState3","endState5","startState1","startState2","startState3","startState4","startState5"]
+        ,test "Internal transition: no end state in C++ output" <|
+            \_ ->
+                let
+                    rowData = { startState = Just "Idle"
+                              , endState = Nothing
+                              , event = Just "tick"
+                              , guard = Nothing
+                              , action = Just "doStuff"
+                              }
+                    result = makeFsmRowFromData [] rowData 1 NO
+                in
+                -- Should NOT contain "= " (no target state assignment)
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "+event<tick>" r)
+                    , \r -> Expect.equal True (String.contains "/ (doStuff)" r)
+                    , \r -> Expect.equal False (String.contains "= " r)
+                    ] result
         ]
 
 
