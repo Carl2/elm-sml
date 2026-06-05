@@ -1,4 +1,4 @@
-module NewModel exposing (testPlantuml,testExtract,testSubSm,testContextInjection)
+module NewModel exposing (testPlantuml,testExtract,testSubSm,testContextInjection,testRowOperations)
 
 import Col.ModelData exposing (..)
 import Expect
@@ -6,6 +6,7 @@ import Test exposing (..)
 import Col.CppData exposing(..)
 import Col.PlantUml as PU
 import Col.Default as DF
+import Main exposing (update, Msg(..))
 
 
 testMachine : Machine
@@ -436,6 +437,92 @@ testContextInjection =
                 Expect.all
                     [ \r -> Expect.equal True (String.contains "Ctx1 ctx_0{};" r)
                     , \r -> Expect.equal True (String.contains "Ctx2 ctx_1{};" r)
-                    , \r -> Expect.equal True (String.contains "sml::sm<SM> sm{ctx_0, ctx_1};" r)
+                     , \r -> Expect.equal True (String.contains "sml::sm<SM> sm{ctx_0, ctx_1};" r)
                     ] result
+        ]
+
+
+-------------------------------------------------------------------------------
+--                         Row Operations Tests                              --
+-------------------------------------------------------------------------------
+
+testRowOperations : Test
+testRowOperations =
+    let
+        makeRow idx startSt =
+            { rowIndex = idx
+            , selected = "No Special"
+            , data =
+                { startState = Just startSt
+                , endState = Just "B"
+                , event = Just "ev"
+                , guard = Nothing
+                , action = Nothing
+                }
+            }
+
+        threeRowMachine =
+            { name = "TestSM"
+            , tableData = [ makeRow 0 "A", makeRow 1 "B", makeRow 2 "C" ]
+            }
+
+        baseModel =
+            { machines = [ threeRowMachine ]
+            , activeMachine = 0
+            , mainContent = ""
+            , contextTypes = []
+            }
+
+        getStartStates model =
+            case List.head model.machines of
+                Just m -> List.filterMap (\r -> r.data.startState) m.tableData
+                Nothing -> []
+
+        getRowIndices model =
+            case List.head model.machines of
+                Just m -> List.map .rowIndex m.tableData
+                Nothing -> []
+    in
+    describe "Row operations"
+        [ test "DeleteRow removes middle row" <|
+            \_ ->
+                let
+                    (newModel, _) = update (DeleteRow 1) baseModel
+                in
+                Expect.equal ["A", "C"] (getStartStates newModel)
+
+        , test "DeleteRow renumbers remaining rows" <|
+            \_ ->
+                let
+                    (newModel, _) = update (DeleteRow 1) baseModel
+                in
+                Expect.equal [0, 1] (getRowIndices newModel)
+
+        , test "MoveRowDown swaps row 0 with row 1" <|
+            \_ ->
+                let
+                    (newModel, _) = update (MoveRowDown 0) baseModel
+                in
+                Expect.equal ["B", "A", "C"] (getStartStates newModel)
+
+        , test "MoveRowUp swaps row 2 with row 1" <|
+            \_ ->
+                let
+                    (newModel, _) = update (MoveRowUp 2) baseModel
+                in
+                Expect.equal ["A", "C", "B"] (getStartStates newModel)
+
+        , test "MoveRowUp on row 0 is a no-op" <|
+            \_ ->
+                let
+                    (newModel, _) = update (MoveRowUp 0) baseModel
+                in
+                Expect.equal ["A", "B", "C"] (getStartStates newModel)
+
+        , test "MoveRowDown on last row is a no-op" <|
+            \_ ->
+                let
+                    (newModel, _) = update (MoveRowDown 2) baseModel
+                in
+                Expect.equal ["A", "B", "C"] (getStartStates newModel)
         ]

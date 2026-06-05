@@ -11,6 +11,7 @@ import Html.Events exposing (onInput,onClick,onBlur)
 import Col.PlantUml as PU
 import Col.ModelData as MD exposing (Model,Machine,TableDataRow,RowData,convertToStringList,init,getActiveMachine,getMachineNames,getRootName,updateActiveMachineTableData)
 import Col.Default as DF
+import Tuple
 
 
 -- Ports to javascript
@@ -24,7 +25,9 @@ type Msg
       | UpdateSelection Int String
       | RenameMachine Int String
       | AddRow
-      | DelRow
+      | DeleteRow Int
+      | MoveRowUp Int
+      | MoveRowDown Int
       | MakeUmlDiagram
       | UpdateMainContent String
       | OpenCompilerExplorer
@@ -74,11 +77,32 @@ update msg model =
             in
             (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
 
-        DelRow ->
+        DeleteRow idx ->
             let
-                removeLastRow tableData =
-                    List.take ((List.length tableData) - 1) tableData
-                newModel = updateActiveMachineTableData model removeLastRow
+                removeAt tableData =
+                    List.indexedMap Tuple.pair tableData
+                        |> List.filter (\(i, _) -> i /= idx)
+                        |> List.map Tuple.second
+                        |> renumberRows
+                newModel = updateActiveMachineTableData model removeAt
+            in
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+
+        MoveRowUp idx ->
+            let
+                swapUp tableData =
+                    if idx <= 0 then tableData
+                    else swapAt (idx - 1) idx tableData |> renumberRows
+                newModel = updateActiveMachineTableData model swapUp
+            in
+            (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
+
+        MoveRowDown idx ->
+            let
+                swapDown tableData =
+                    if idx >= List.length tableData - 1 then tableData
+                    else swapAt idx (idx + 1) tableData |> renumberRows
+                newModel = updateActiveMachineTableData model swapDown
             in
             (newModel, Cmd.batch [highlightCode (), sendDiagram <| createPlantUmlDiagram newModel])
 
@@ -153,6 +177,28 @@ update msg model =
 
 
 
+-- Row manipulation helpers
+renumberRows : List TableDataRow -> List TableDataRow
+renumberRows rows =
+    List.indexedMap (\i row -> { row | rowIndex = i }) rows
+
+
+swapAt : Int -> Int -> List a -> List a
+swapAt i j list =
+    let
+        arr = List.indexedMap Tuple.pair list
+        getAt idx = List.filter (\(k, _) -> k == idx) arr |> List.head |> Maybe.map Tuple.second
+    in
+    case (getAt i, getAt j) of
+        (Just vi, Just vj) ->
+            List.indexedMap (\k v ->
+                if k == i then vj
+                else if k == j then vi
+                else v
+            ) list
+        _ -> list
+
+
 renameMachine: Int -> String -> Model -> (Model, Cmd msg)
 renameMachine idx newName model =
     let
@@ -194,7 +240,6 @@ view model =
                     , makeContextInput model
                     , table [] (makeModelTable model machine)
                     , button [onClick AddRow] [ text "+"]
-                    , button [onClick DelRow] [ text "-"]
                     ]
             Nothing ->
                 div [] [text "No machine selected"]
@@ -462,7 +507,32 @@ makeModelTable model machine =
             else
                 []
 
-        forEachRow tableDatas = List.indexedMap (\rowIndex tableData -> tr (rowStyle tableData) (forEachField rowIndex tableData ++ internalLabel tableData) ) tableDatas
+        rowCount = List.length machine.tableData
+
+        rowActions rowIndex =
+            [ td [style "white-space" "nowrap"]
+                [ button
+                    ([ onClick (MoveRowUp rowIndex)
+                     , style "padding" "2px 6px"
+                     , style "margin-right" "2px"
+                     ] ++ if rowIndex == 0 then [disabled True] else [])
+                    [text "\u{2191}"]
+                , button
+                    ([ onClick (MoveRowDown rowIndex)
+                     , style "padding" "2px 6px"
+                     , style "margin-right" "2px"
+                     ] ++ if rowIndex >= rowCount - 1 then [disabled True] else [])
+                    [text "\u{2193}"]
+                , button
+                    [ onClick (DeleteRow rowIndex)
+                    , style "padding" "2px 6px"
+                    , style "color" "red"
+                    ]
+                    [text "\u{00D7}"]
+                ]
+            ]
+
+        forEachRow tableDatas = List.indexedMap (\rowIndex tableData -> tr (rowStyle tableData) (forEachField rowIndex tableData ++ internalLabel tableData ++ rowActions rowIndex) ) tableDatas
     in
         makeHeader ++ [Html.tbody [] (forEachRow machine.tableData)]
 
@@ -493,6 +563,9 @@ makeHeader =
                   ]
             ,Html.th [style "background-color" "#374151", style "color" "white"] [
                   Html.text "Special"
+                 ]
+            ,Html.th [style "background-color" "#374151", style "color" "white"] [
+                  Html.text ""
                  ]
             ]
         ]

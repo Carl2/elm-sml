@@ -6886,6 +6886,10 @@ var $elm$core$Basics$min = F2(
 		return (_Utils_cmp(x, y) < 0) ? x : y;
 	});
 var $author$project$Main$openCompilerExplorer = _Platform_outgoingPort('openCompilerExplorer', $elm$json$Json$Encode$string);
+var $elm$core$Tuple$pair = F2(
+	function (a, b) {
+		return _Utils_Tuple2(a, b);
+	});
 var $author$project$Main$renameMachine = F3(
 	function (idx, newName, model) {
 		var updateMachineAt = function (machines) {
@@ -6914,7 +6918,55 @@ var $author$project$Main$renameMachine = F3(
 			finalModel,
 			$author$project$Main$highlightCode(_Utils_Tuple0));
 	});
+var $author$project$Main$renumberRows = function (rows) {
+	return A2(
+		$elm$core$List$indexedMap,
+		F2(
+			function (i, row) {
+				return _Utils_update(
+					row,
+					{rowIndex: i});
+			}),
+		rows);
+};
+var $elm$core$Tuple$second = function (_v0) {
+	var y = _v0.b;
+	return y;
+};
 var $author$project$Main$sendDiagram = _Platform_outgoingPort('sendDiagram', $elm$json$Json$Encode$string);
+var $author$project$Main$swapAt = F3(
+	function (i, j, list) {
+		var arr = A2($elm$core$List$indexedMap, $elm$core$Tuple$pair, list);
+		var getAt = function (idx) {
+			return A2(
+				$elm$core$Maybe$map,
+				$elm$core$Tuple$second,
+				$elm$core$List$head(
+					A2(
+						$elm$core$List$filter,
+						function (_v1) {
+							var k = _v1.a;
+							return _Utils_eq(k, idx);
+						},
+						arr)));
+		};
+		var _v0 = _Utils_Tuple2(
+			getAt(i),
+			getAt(j));
+		if ((_v0.a.$ === 'Just') && (_v0.b.$ === 'Just')) {
+			var vi = _v0.a.a;
+			var vj = _v0.b.a;
+			return A2(
+				$elm$core$List$indexedMap,
+				F2(
+					function (k, v) {
+						return _Utils_eq(k, i) ? vj : (_Utils_eq(k, j) ? vi : v);
+					}),
+				list);
+		} else {
+			return list;
+		}
+	});
 var $elm$core$List$takeReverse = F3(
 	function (n, list, kept) {
 		takeReverse:
@@ -7171,14 +7223,56 @@ var $author$project$Main$update = F2(
 								$author$project$Main$sendDiagram(
 								$author$project$Main$createPlantUmlDiagram(newModel))
 							])));
-			case 'DelRow':
-				var removeLastRow = function (tableData) {
-					return A2(
-						$elm$core$List$take,
-						$elm$core$List$length(tableData) - 1,
-						tableData);
+			case 'DeleteRow':
+				var idx = msg.a;
+				var removeAt = function (tableData) {
+					return $author$project$Main$renumberRows(
+						A2(
+							$elm$core$List$map,
+							$elm$core$Tuple$second,
+							A2(
+								$elm$core$List$filter,
+								function (_v1) {
+									var i = _v1.a;
+									return !_Utils_eq(i, idx);
+								},
+								A2($elm$core$List$indexedMap, $elm$core$Tuple$pair, tableData))));
 				};
-				var newModel = A2($author$project$Col$ModelData$updateActiveMachineTableData, model, removeLastRow);
+				var newModel = A2($author$project$Col$ModelData$updateActiveMachineTableData, model, removeAt);
+				return _Utils_Tuple2(
+					newModel,
+					$elm$core$Platform$Cmd$batch(
+						_List_fromArray(
+							[
+								$author$project$Main$highlightCode(_Utils_Tuple0),
+								$author$project$Main$sendDiagram(
+								$author$project$Main$createPlantUmlDiagram(newModel))
+							])));
+			case 'MoveRowUp':
+				var idx = msg.a;
+				var swapUp = function (tableData) {
+					return (idx <= 0) ? tableData : $author$project$Main$renumberRows(
+						A3($author$project$Main$swapAt, idx - 1, idx, tableData));
+				};
+				var newModel = A2($author$project$Col$ModelData$updateActiveMachineTableData, model, swapUp);
+				return _Utils_Tuple2(
+					newModel,
+					$elm$core$Platform$Cmd$batch(
+						_List_fromArray(
+							[
+								$author$project$Main$highlightCode(_Utils_Tuple0),
+								$author$project$Main$sendDiagram(
+								$author$project$Main$createPlantUmlDiagram(newModel))
+							])));
+			case 'MoveRowDown':
+				var idx = msg.a;
+				var swapDown = function (tableData) {
+					return (_Utils_cmp(
+						idx,
+						$elm$core$List$length(tableData) - 1) > -1) ? tableData : $author$project$Main$renumberRows(
+						A3($author$project$Main$swapAt, idx, idx + 1, tableData));
+				};
+				var newModel = A2($author$project$Col$ModelData$updateActiveMachineTableData, model, swapDown);
 				return _Utils_Tuple2(
 					newModel,
 					$elm$core$Platform$Cmd$batch(
@@ -7346,7 +7440,6 @@ var $author$project$Main$update = F2(
 		}
 	});
 var $author$project$Main$AddRow = {$: 'AddRow'};
-var $author$project$Main$DelRow = {$: 'DelRow'};
 var $author$project$Main$DownloadCode = {$: 'DownloadCode'};
 var $author$project$Main$MakeUmlDiagram = {$: 'MakeUmlDiagram'};
 var $author$project$Main$OpenCompilerExplorer = {$: 'OpenCompilerExplorer'};
@@ -7649,14 +7742,15 @@ var $author$project$Main$makeMainOutput = function (model) {
 				_List_Nil)
 			]));
 };
-var $author$project$Main$UpdateField = F3(
-	function (a, b, c) {
-		return {$: 'UpdateField', a: a, b: b, c: c};
-	});
-var $author$project$Main$UpdateSelection = F2(
-	function (a, b) {
-		return {$: 'UpdateSelection', a: a, b: b};
-	});
+var $author$project$Main$DeleteRow = function (a) {
+	return {$: 'DeleteRow', a: a};
+};
+var $author$project$Main$MoveRowDown = function (a) {
+	return {$: 'MoveRowDown', a: a};
+};
+var $author$project$Main$MoveRowUp = function (a) {
+	return {$: 'MoveRowUp', a: a};
+};
 var $elm$json$Json$Encode$bool = _Json_wrap;
 var $elm$html$Html$Attributes$boolProperty = F2(
 	function (key, bool) {
@@ -7666,6 +7760,14 @@ var $elm$html$Html$Attributes$boolProperty = F2(
 			$elm$json$Json$Encode$bool(bool));
 	});
 var $elm$html$Html$Attributes$disabled = $elm$html$Html$Attributes$boolProperty('disabled');
+var $author$project$Main$UpdateField = F3(
+	function (a, b, c) {
+		return {$: 'UpdateField', a: a, b: b, c: c};
+	});
+var $author$project$Main$UpdateSelection = F2(
+	function (a, b) {
+		return {$: 'UpdateSelection', a: a, b: b};
+	});
 var $author$project$Main$getPlaceHolderText = function (idx) {
 	return (!idx) ? 'Start state name' : ((idx === 1) ? 'End state name' : ((idx === 2) ? 'Event Name' : ((idx === 3) ? 'Guard (fn) name' : ((idx === 4) ? 'Action (fn) name' : 'Unknown'))));
 };
@@ -7883,6 +7985,17 @@ var $author$project$Main$makeHeader = _List_fromArray(
 						_List_fromArray(
 							[
 								$elm$html$Html$text('Special')
+							])),
+						A2(
+						$elm$html$Html$th,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'background-color', '#374151'),
+								A2($elm$html$Html$Attributes$style, 'color', 'white')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('')
 							]))
 					]))
 			]))
@@ -7897,6 +8010,70 @@ var $author$project$Main$makeModelTable = F2(
 					A2($elm$html$Html$Attributes$style, 'background-color', '#B45309'),
 					$elm$html$Html$Attributes$title('Internal transition')
 				]) : _List_Nil;
+		};
+		var rowCount = $elm$core$List$length(machine.tableData);
+		var rowActions = function (rowIndex) {
+			return _List_fromArray(
+				[
+					A2(
+					$elm$html$Html$td,
+					_List_fromArray(
+						[
+							A2($elm$html$Html$Attributes$style, 'white-space', 'nowrap')
+						]),
+					_List_fromArray(
+						[
+							A2(
+							$elm$html$Html$button,
+							_Utils_ap(
+								_List_fromArray(
+									[
+										$elm$html$Html$Events$onClick(
+										$author$project$Main$MoveRowUp(rowIndex)),
+										A2($elm$html$Html$Attributes$style, 'padding', '2px 6px'),
+										A2($elm$html$Html$Attributes$style, 'margin-right', '2px')
+									]),
+								(!rowIndex) ? _List_fromArray(
+									[
+										$elm$html$Html$Attributes$disabled(true)
+									]) : _List_Nil),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('\u2191')
+								])),
+							A2(
+							$elm$html$Html$button,
+							_Utils_ap(
+								_List_fromArray(
+									[
+										$elm$html$Html$Events$onClick(
+										$author$project$Main$MoveRowDown(rowIndex)),
+										A2($elm$html$Html$Attributes$style, 'padding', '2px 6px'),
+										A2($elm$html$Html$Attributes$style, 'margin-right', '2px')
+									]),
+								(_Utils_cmp(rowIndex, rowCount - 1) > -1) ? _List_fromArray(
+									[
+										$elm$html$Html$Attributes$disabled(true)
+									]) : _List_Nil),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('\u2193')
+								])),
+							A2(
+							$elm$html$Html$button,
+							_List_fromArray(
+								[
+									$elm$html$Html$Events$onClick(
+									$author$project$Main$DeleteRow(rowIndex)),
+									A2($elm$html$Html$Attributes$style, 'padding', '2px 6px'),
+									A2($elm$html$Html$Attributes$style, 'color', 'red')
+								]),
+							_List_fromArray(
+								[
+									$elm$html$Html$text('\u00D7')
+								]))
+						]))
+				]);
 		};
 		var internalLabel = function (tableDataRow) {
 			return $author$project$Main$isInternalTransition(tableDataRow) ? _List_fromArray(
@@ -7925,7 +8102,9 @@ var $author$project$Main$makeModelTable = F2(
 							rowStyle(tableData),
 							_Utils_ap(
 								A2($author$project$Main$forEachField, rowIndex, tableData),
-								internalLabel(tableData)));
+								_Utils_ap(
+									internalLabel(tableData),
+									rowActions(rowIndex))));
 					}),
 				tableDatas);
 		};
@@ -8059,16 +8238,6 @@ var $author$project$Main$view = function (model) {
 								_List_fromArray(
 									[
 										$elm$html$Html$text('+')
-									])),
-								A2(
-								$elm$html$Html$button,
-								_List_fromArray(
-									[
-										$elm$html$Html$Events$onClick($author$project$Main$DelRow)
-									]),
-								_List_fromArray(
-									[
-										$elm$html$Html$text('-')
 									]))
 							]));
 				} else {
