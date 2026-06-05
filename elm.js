@@ -5900,14 +5900,22 @@ var $author$project$Col$PlantUml$makeNestedSystemString = function (machines) {
 				},
 				machines));
 	};
-	var generateMachineContent = F3(
-		function (prefix, indent, machine) {
+	var generateMachineContent = F4(
+		function (prefix, indent, alreadyClaimed, machine) {
 			var uniqueStates_ = $author$project$Col$ModelData$getAllStates(machine);
 			var system = A3(
 				$author$project$Col$PlantUml$genSystem,
 				machine.name,
 				uniqueStates_,
 				$author$project$Col$PlantUml$transformTR2Transition(machine.tableData));
+			var mySubSms = A2(
+				$elm$core$List$filter,
+				function (s) {
+					return A2($elm$core$List$member, s, machineNames) && ((!_Utils_eq(s, machine.name)) && (!A2($elm$core$List$member, s, alreadyClaimed)));
+				},
+				uniqueStates_);
+			var initialState = $author$project$Col$PlantUml$getInitialStateFromMachine(machine);
+			var claimedForChildren = _Utils_ap(alreadyClaimed, mySubSms);
 			var subSmBlocks = $elm$core$String$concat(
 				A2(
 					$elm$core$List$map,
@@ -5916,18 +5924,12 @@ var $author$project$Col$PlantUml$makeNestedSystemString = function (machines) {
 						if (_v0.$ === 'Just') {
 							var subMachine = _v0.a;
 							var childPrefix = prefix + (subSmName + '_');
-							return indent + ('state ' + (subSmName + (' {\n' + (A3(generateMachineContent, childPrefix, indent + '  ', subMachine) + (indent + '}\n')))));
+							return indent + ('state ' + (subSmName + (' {\n' + (A4(generateMachineContent, childPrefix, indent + '  ', claimedForChildren, subMachine) + (indent + '}\n')))));
 						} else {
 							return '';
 						}
 					},
-					A2(
-						$elm$core$List$filter,
-						function (s) {
-							return A2($elm$core$List$member, s, machineNames) && (!_Utils_eq(s, machine.name));
-						},
-						uniqueStates_)));
-			var initialState = $author$project$Col$PlantUml$getInitialStateFromMachine(machine);
+					mySubSms));
 			var aliasId = function (stateName) {
 				return _Utils_ap(prefix, stateName);
 			};
@@ -5976,7 +5978,7 @@ var $author$project$Col$PlantUml$makeNestedSystemString = function (machines) {
 			_Utils_ap(
 				$author$project$Col$PlantUml$systemStartStr(root.name),
 				_Utils_ap(
-					A3(generateMachineContent, '', '', root),
+					A4(generateMachineContent, '', '', _List_Nil, root),
 					_Utils_ap($author$project$Col$PlantUml$systemEndStr, $author$project$Col$PlantUml$headerEndStr))));
 	} else {
 		return _Utils_ap($author$project$Col$PlantUml$headerStartStr, $author$project$Col$PlantUml$headerEndStr);

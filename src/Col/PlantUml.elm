@@ -343,6 +343,7 @@ makeSystemString system =
 -- The first machine is the root. States matching other machine names are
 -- rendered as nested composite states.
 -- Uses aliased state names in nested blocks to avoid PlantUML name collisions.
+-- A sub-SM is only rendered once, at the highest level that references it.
 makeNestedSystemString : List MD.Machine -> String
 makeNestedSystemString machines =
     let
@@ -355,8 +356,9 @@ makeNestedSystemString machines =
         -- Generate the content of a single machine (transitions + nested sub-SMs)
         -- prefix is used to make state IDs unique (empty for root)
         -- indent is the indentation prefix for this level
-        generateMachineContent : String -> String -> MD.Machine -> String
-        generateMachineContent prefix indent machine =
+        -- alreadyClaimed is the list of sub-SM names already rendered by ancestors
+        generateMachineContent : String -> String -> List String -> MD.Machine -> String
+        generateMachineContent prefix indent alreadyClaimed machine =
             let
                 uniqueStates_ = MD.getAllStates machine
                 system = genSystem machine.name uniqueStates_ (transformTR2Transition machine.tableData)
@@ -387,10 +389,17 @@ makeNestedSystemString machines =
                             acc ++ (String.concat lstTransStr)
                     ) "" system.states
 
+                -- Sub-SMs to render at THIS level: referenced here and not already claimed by ancestor
+                mySubSms =
+                    uniqueStates_
+                        |> List.filter (\s -> List.member s machineNames && s /= machine.name && not (List.member s alreadyClaimed))
+
+                -- When recursing into children, they should not re-render our sub-SMs
+                claimedForChildren = alreadyClaimed ++ mySubSms
+
                 -- Generate nested sub-SM blocks
                 subSmBlocks =
-                    uniqueStates_
-                        |> List.filter (\s -> List.member s machineNames && s /= machine.name)
+                    mySubSms
                         |> List.map (\subSmName ->
                             case findMachine subSmName of
                                 Just subMachine ->
@@ -398,7 +407,7 @@ makeNestedSystemString machines =
                                         childPrefix = prefix ++ subSmName ++ "_"
                                     in
                                     indent ++ "state " ++ subSmName ++ " {\n"
-                                    ++ generateMachineContent childPrefix (indent ++ "  ") subMachine
+                                    ++ generateMachineContent childPrefix (indent ++ "  ") claimedForChildren subMachine
                                     ++ indent ++ "}\n"
                                 Nothing -> ""
                            )
@@ -412,7 +421,7 @@ makeNestedSystemString machines =
         Just root ->
             headerStartStr
             ++ systemStartStr root.name
-            ++ generateMachineContent "" "" root
+            ++ generateMachineContent "" "" [] root
             ++ systemEndStr
             ++ headerEndStr
         Nothing ->

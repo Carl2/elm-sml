@@ -362,6 +362,56 @@ testSubSm =
                     , \r -> Expect.equal True (String.contains "@startuml" r)
                     , \r -> Expect.equal True (String.contains "@enduml" r)
                     ] result
+
+        , test "Sub-SM referenced by both root and child is rendered only at root level" <|
+            \_ ->
+                let
+                    -- SubA is referenced by both Root (B→SubA) and Sub (C→SubA)
+                    subA =
+                        { name = "SubA"
+                        , tableData =
+                            [ { rowIndex = 0, selected = "No Special"
+                              , data = { startState = Just "X1", endState = Just "X2", event = Just "e1", guard = Nothing, action = Nothing }
+                              }
+                            ]
+                        }
+                    sub =
+                        { name = "Sub"
+                        , tableData =
+                            [ { rowIndex = 0, selected = "No Special"
+                              , data = { startState = Just "A", endState = Just "B", event = Just "e1", guard = Nothing, action = Nothing }
+                              }
+                            , { rowIndex = 1, selected = "No Special"
+                              , data = { startState = Just "B", endState = Just "SubA", event = Just "e2", guard = Nothing, action = Nothing }
+                              }
+                            ]
+                        }
+                    root =
+                        { name = "Root"
+                        , tableData =
+                            [ { rowIndex = 0, selected = "No Special"
+                              , data = { startState = Just "Idle", endState = Just "Sub", event = Just "go", guard = Nothing, action = Nothing }
+                              }
+                            , { rowIndex = 1, selected = "No Special"
+                              , data = { startState = Just "Idle", endState = Just "SubA", event = Just "goA", guard = Nothing, action = Nothing }
+                              }
+                            ]
+                        }
+                    result = PU.makeNestedSystemString [root, sub, subA]
+
+                    -- Count occurrences of "state SubA {" — should be exactly 1
+                    countSubA = result
+                        |> String.split "state SubA {"
+                        |> List.length
+                        |> (\n -> n - 1)  -- split produces N+1 parts for N occurrences
+                in
+                Expect.all
+                    [ \_ -> Expect.equal 1 countSubA  -- SubA rendered only once
+                    , \r -> Expect.equal True (String.contains "state SubA {" r)
+                    , \r -> Expect.equal True (String.contains "state Sub {" r)
+                    -- SubA should NOT appear inside Sub
+                    , \r -> Expect.equal False (String.contains "state Sub {\n  state SubA {" (String.replace "\n" "\n" r))
+                    ] result
         ]
 
 
