@@ -1,0 +1,172 @@
+#+TITLE: SML Policies Feature
+#+AUTHOR: Carl Olsen
+#+DATE: 2026-06-05
+
+* Feature Overview
+
+Add a configurable "SML Policies" panel to the UI, allowing users to
+opt-in to Boost.SML policy template parameters. Each policy modifies
+the generated =sml::sm<>= declaration and may add supporting code
+(structs, includes, constructor args).
+
+* Goals and Non-Goals
+
+** Goals
+- Provide an add/remove list of SM policies with per-policy sub-options
+- Generate correct C++ for each policy (template params, includes, instances)
+- Support 3 initial policies: Logger, DeferQueue, ThreadSafe
+- Each policy can only be added once
+- Persist policies in localStorage (extend existing encoder/decoder)
+
+** Non-Goals
+- Per-machine policies (policies apply to the root SM only for now)
+- Custom user-defined policies (out of scope)
+
+* Constraints and Assumptions
+
+- Elm 0.19.1 (no union type JSON encode/decode helpers built-in)
+- Logger struct uses fixed name =my_logger= (not derived from machine name)
+- DeferQueue and ThreadSafe sub-options are dropdown with fixed choices
+- All 3 policies generate code; no "placeholder only" mode
+
+* Risks and Open Questions
+
+- None blocking
+
+* Future Enhancements
+
+** Per-machine logger names
+Generate one logger per machine:
+#+BEGIN_SRC cpp
+sml::sm<SubLogger, Sub> sub{...};
+sml::sm<MainLogger, StateMachine> sm{std::ref(sub), logger};
+#+END_SRC
+Requires generating N logger structs and N instance variables.
+Deferred until needed.
+
+* High-level Architecture
+
+** Data Model (Elm)
+
+#+BEGIN_SRC elm
+type LogFormat
+    = Printf
+    | StdPrint
+    | EmptyLog
+
+type SmPolicy
+    = Logger LogFormat
+    | DeferQueue String   -- queue type (e.g. "std::deque")
+    | ThreadSafe String   -- mutex type (e.g. "std::mutex")
+
+type alias Model =
+    { ...
+    , smPolicies : List SmPolicy
+    }
+#+END_SRC
+
+** Generated C++ Output
+
+*** Logger (Printf)
+#+BEGIN_SRC cpp
+#include <cstdio>
+
+struct my_logger {
+    template <class SM, class TEvent>
+    void log_process_event(const TEvent&) {
+        printf("[%s][process_event] %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TEvent>());
+    }
+    template <class SM, class TGuard, class TEvent>
+    void log_guard(const TGuard&, const TEvent&, bool result) {
+        printf("[%s][guard] %s %s %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TGuard>(), sml::aux::get_type_name<TEvent>(), (result ? "[OK]" : "[Reject]"));
+    }
+    template <class SM, class TAction, class TEvent>
+    void log_action(const TAction&, const TEvent&) {
+        printf("[%s][action] %s %s\n", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TAction>(), sml::aux::get_type_name<TEvent>());
+    }
+    template <class SM, class TSrcState, class TDstState>
+    void log_state_change(const TSrcState& src, const TDstState& dst) {
+        printf("[%s][transition] %s -> %s\n", sml::aux::get_type_name<SM>(), src.c_str(), dst.c_str());
+    }
+};
+#+END_SRC
+
+*** Logger (std::print)
+#+BEGIN_SRC cpp
+#include <print>
+
+struct my_logger {
+    template <class SM, class TEvent>
+    void log_process_event(const TEvent&) {
+        std::println("[{}][process_event] {}", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TEvent>());
+    }
+    // ... same pattern with std::println
+};
+#+END_SRC
+
+*** Logger (Empty)
+#+BEGIN_SRC cpp
+struct my_logger {
+    template <class SM, class TEvent>
+    void log_process_event(const TEvent&) {}
+    template <class SM, class TGuard, class TEvent>
+    void log_guard(const TGuard&, const TEvent&, bool result) {}
+    template <class SM, class TAction, class TEvent>
+    void log_action(const TAction&, const TEvent&) {}
+    template <class SM, class TSrcState, class TDstState>
+    void log_state_change(const TSrcState& src, const TDstState& dst) {}
+};
+#+END_SRC
+
+*** DeferQueue
+#+BEGIN_SRC cpp
+#include <deque>  // or <queue>
+
+// Template param: sml::defer_queue<std::deque>
+#+END_SRC
+
+*** ThreadSafe
+#+BEGIN_SRC cpp
+#include <mutex>
+
+// Template param: sml::thread_safe<std::mutex>
+#+END_SRC
+
+*** Combined sml::sm<> declaration
+#+BEGIN_SRC cpp
+my_logger logger;
+MyCtx ctx_;
+sml::sm<StateMachine, sml::logger<my_logger>, sml::defer_queue<std::deque>, sml::thread_safe<std::mutex>> sm{logger, ctx_};
+#+END_SRC
+
+Note: logger instance is always passed FIRST in constructor args.
+
+** UI Design
+
+- Section "SM Policies" below Context Types
+- "Add Policy" dropdown showing only policies not yet added
+- Each added policy is a row: [PolicyName] [sub-option dropdown] [x remove]
+- Sub-options:
+  - Logger: Printf / std::print / Empty
+  - DeferQueue: std::deque / std::queue
+  - ThreadSafe: std::mutex / std::shared_mutex
+
+** Files Touched
+
+| File              | Changes                                              |
+|-------------------+------------------------------------------------------|
+| Col/ModelData.elm | SmPolicy, LogFormat types; smPolicies in Model; JSON |
+| Col/CppData.elm   | makeLoggerStruct, makePolicyIncludes, makePolicyTemplateParams |
+| Col/Default.elm   | makeMain takes policies; logger in constructor       |
+| Main.elm          | AddPolicy, RemovePolicy, UpdatePolicy msgs + UI      |
+| tests/NewModel.elm| testSmPolicies suite                                 |
+
+* Tasks
+
+** DONE Write plan document
+** TODO Task 1: ModelData - types and encoder/decoder
+** TODO Task 2: CppData - code generation functions
+** TODO Task 3: Default - update makeMain for policies
+** TODO Task 4: Main - messages, update logic, UI
+** TODO Task 5: Tests
+** TODO Verify compile and tests pass

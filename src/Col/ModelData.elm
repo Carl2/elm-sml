@@ -1,19 +1,20 @@
 module Col.ModelData exposing (Model,Machine,TableDataRow,RowData,Selected(..)
-                                    ,defaultRowData
-                                    ,convertToStringList
-                                    ,init
-                                    ,rowDataToStringList
-                                    ,updateDataAtIndex
-                                    ,updateSelected
-                                    ,convertSelected
-                                    ,getAllStates
-                                    ,getActiveMachine
-                                    ,getMachineNames
-                                    ,getRootName
-                                    ,updateActiveMachineTableData
-                                    ,encodeModel
-                                    ,modelDecoder
-                               )
+                                     ,LogFormat(..),SmPolicy(..)
+                                     ,defaultRowData
+                                     ,convertToStringList
+                                     ,init
+                                     ,rowDataToStringList
+                                     ,updateDataAtIndex
+                                     ,updateSelected
+                                     ,convertSelected
+                                     ,getAllStates
+                                     ,getActiveMachine
+                                     ,getMachineNames
+                                     ,getRootName
+                                     ,updateActiveMachineTableData
+                                     ,encodeModel
+                                     ,modelDecoder
+                                )
 import Maybe
 import Set
 import Col.Default as DF
@@ -42,11 +43,24 @@ type alias Machine =
     , tableData : List TableDataRow
     }
 
+type LogFormat
+    = Printf
+    | StdPrint
+    | EmptyLog
+
+
+type SmPolicy
+    = Logger LogFormat
+    | DeferQueue String
+    | ThreadSafe String
+
+
 type alias Model =
     { machines : List Machine
     , activeMachine : Int
     , mainContent : String
     , contextTypes : List String
+    , smPolicies : List SmPolicy
     }
 
 type Selected =
@@ -95,8 +109,9 @@ init _ =
     in
     ({ machines = [defaultMachine]
      , activeMachine = 0
-     , mainContent = DF.makeMain DF.defaultName []
+     , mainContent = DF.makeMain DF.defaultName [] "" ""
      , contextTypes = []
+     , smPolicies = []
     },Cmd.none)
 
 
@@ -257,7 +272,27 @@ encodeModel model =
         , ("activeMachine", E.int model.activeMachine)
         , ("mainContent", E.string model.mainContent)
         , ("contextTypes", E.list E.string model.contextTypes)
+        , ("smPolicies", E.list encodeSmPolicy model.smPolicies)
         ]
+
+
+encodeLogFormat : LogFormat -> E.Value
+encodeLogFormat fmt =
+    case fmt of
+        Printf -> E.string "printf"
+        StdPrint -> E.string "std_print"
+        EmptyLog -> E.string "empty"
+
+
+encodeSmPolicy : SmPolicy -> E.Value
+encodeSmPolicy policy =
+    case policy of
+        Logger fmt ->
+            E.object [("type", E.string "logger"), ("format", encodeLogFormat fmt)]
+        DeferQueue queueType ->
+            E.object [("type", E.string "defer_queue"), ("queueType", E.string queueType)]
+        ThreadSafe mutexType ->
+            E.object [("type", E.string "thread_safe"), ("mutexType", E.string mutexType)]
 
 
 -------------------------------------------------------------------------------
@@ -291,8 +326,34 @@ machineDecoder =
 
 modelDecoder : D.Decoder Model
 modelDecoder =
-    D.map4 Model
+    D.map5 Model
         (D.field "machines" (D.list machineDecoder))
         (D.field "activeMachine" D.int)
         (D.field "mainContent" D.string)
         (D.field "contextTypes" (D.list D.string))
+        (D.oneOf
+            [ D.field "smPolicies" (D.list smPolicyDecoder)
+            , D.succeed []
+            ])
+
+
+logFormatDecoder : D.Decoder LogFormat
+logFormatDecoder =
+    D.string |> D.andThen (\s ->
+        case s of
+            "printf" -> D.succeed Printf
+            "std_print" -> D.succeed StdPrint
+            "empty" -> D.succeed EmptyLog
+            _ -> D.fail ("Unknown log format: " ++ s)
+    )
+
+
+smPolicyDecoder : D.Decoder SmPolicy
+smPolicyDecoder =
+    D.field "type" D.string |> D.andThen (\t ->
+        case t of
+            "logger" -> D.map Logger (D.field "format" logFormatDecoder)
+            "defer_queue" -> D.map DeferQueue (D.field "queueType" D.string)
+            "thread_safe" -> D.map ThreadSafe (D.field "mutexType" D.string)
+            _ -> D.fail ("Unknown policy type: " ++ t)
+    )

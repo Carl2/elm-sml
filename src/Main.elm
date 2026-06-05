@@ -9,7 +9,7 @@ import Html.Keyed as Keyed
 import Html.Attributes exposing (..)
 import Html.Events exposing (onInput,onClick,onBlur)
 import Col.PlantUml as PU
-import Col.ModelData as MD exposing (Model,Machine,TableDataRow,RowData,convertToStringList,init,getActiveMachine,getMachineNames,getRootName,updateActiveMachineTableData,encodeModel,modelDecoder)
+import Col.ModelData as MD exposing (Model,Machine,TableDataRow,RowData,convertToStringList,init,getActiveMachine,getMachineNames,getRootName,updateActiveMachineTableData,encodeModel,modelDecoder,SmPolicy(..),LogFormat(..))
 import Col.Default as DF
 import Tuple
 import Json.Encode as E
@@ -43,6 +43,9 @@ type Msg
       | AddContext
       | RemoveContext Int
       | UpdateContext Int String
+      | AddPolicy String
+      | RemovePolicy Int
+      | UpdatePolicyOption Int String
       | RequestReset
       | ConfirmReset
 
@@ -50,6 +53,13 @@ type Msg
 save : Model -> Cmd msg
 save model =
     saveModel (E.encode 0 (encodeModel model))
+
+
+regenerateMainContent : Model -> String
+regenerateMainContent model =
+    DF.makeMain (getRootName model) model.contextTypes
+        (Cpp.makePolicyTemplateParams model.smPolicies)
+        (Cpp.makePolicyConstructorArgs model.smPolicies)
 
 
 
@@ -172,7 +182,7 @@ update msg model =
             let
                 newContextTypes = model.contextTypes ++ [""]
                 newModel = { model | contextTypes = newContextTypes
-                           , mainContent = DF.makeMain (getRootName model) newContextTypes }
+                           , mainContent = DF.makeMain (getRootName model) newContextTypes (Cpp.makePolicyTemplateParams model.smPolicies) (Cpp.makePolicyConstructorArgs model.smPolicies) }
             in
             (newModel, Cmd.batch [highlightCode (), save newModel])
 
@@ -180,7 +190,7 @@ update msg model =
             let
                 newContextTypes = List.take idx model.contextTypes ++ List.drop (idx + 1) model.contextTypes
                 newModel = { model | contextTypes = newContextTypes
-                           , mainContent = DF.makeMain (getRootName model) newContextTypes }
+                           , mainContent = DF.makeMain (getRootName model) newContextTypes (Cpp.makePolicyTemplateParams model.smPolicies) (Cpp.makePolicyConstructorArgs model.smPolicies) }
             in
             (newModel, Cmd.batch [highlightCode (), save newModel])
 
@@ -189,10 +199,57 @@ update msg model =
                 newContextTypes =
                     List.indexedMap (\i t -> if i == idx then newValue else t) model.contextTypes
                 newModel = { model | contextTypes = newContextTypes
-                           , mainContent = DF.makeMain (getRootName model) newContextTypes }
+                           , mainContent = DF.makeMain (getRootName model) newContextTypes (Cpp.makePolicyTemplateParams model.smPolicies) (Cpp.makePolicyConstructorArgs model.smPolicies) }
             in
             (newModel, Cmd.batch [highlightCode (), save newModel])
 
+        AddPolicy policyType ->
+            let
+                newPolicy = case policyType of
+                    "logger" -> Just (Logger Printf)
+                    "defer_queue" -> Just (DeferQueue "std::deque")
+                    "thread_safe" -> Just (ThreadSafe "std::mutex")
+                    _ -> Nothing
+
+                newPolicies = case newPolicy of
+                    Just p -> model.smPolicies ++ [p]
+                    Nothing -> model.smPolicies
+
+                newModel = { model | smPolicies = newPolicies
+                           , mainContent = regenerateMainContent { model | smPolicies = newPolicies } }
+            in
+            (newModel, Cmd.batch [highlightCode (), save newModel])
+
+        RemovePolicy idx ->
+            let
+                newPolicies = List.indexedMap Tuple.pair model.smPolicies
+                    |> List.filter (\(i, _) -> i /= idx)
+                    |> List.map Tuple.second
+                newModel = { model | smPolicies = newPolicies
+                           , mainContent = regenerateMainContent { model | smPolicies = newPolicies } }
+            in
+            (newModel, Cmd.batch [highlightCode (), save newModel])
+
+        UpdatePolicyOption idx newValue ->
+            let
+                updatePolicy i policy =
+                    if i == idx then
+                        case policy of
+                            Logger _ ->
+                                case newValue of
+                                    "printf" -> Logger Printf
+                                    "std_print" -> Logger StdPrint
+                                    "empty" -> Logger EmptyLog
+                                    _ -> policy
+                            DeferQueue _ -> DeferQueue newValue
+                            ThreadSafe _ -> ThreadSafe newValue
+                    else
+                        policy
+                newPolicies = List.indexedMap updatePolicy model.smPolicies
+                newModel = { model | smPolicies = newPolicies
+                           , mainContent = regenerateMainContent { model | smPolicies = newPolicies } }
+            in
+            (newModel, Cmd.batch [highlightCode (), save newModel])
 
 
 
@@ -238,7 +295,7 @@ renameMachine idx newName model =
         -- If renaming the root machine, also update mainContent
         finalModel =
             if isRootMachine then
-                { newModel | mainContent = DF.makeMain newName model.contextTypes }
+                { newModel | mainContent = DF.makeMain newName model.contextTypes (Cpp.makePolicyTemplateParams model.smPolicies) (Cpp.makePolicyConstructorArgs model.smPolicies) }
             else
                 newModel
     in
@@ -257,6 +314,7 @@ view model =
                 div []
                     [ makeMachineNameInput model
                     , makeContextInput model
+                    , makePolicyInput model
                     , table [] (makeModelTable model machine)
                     , button [onClick AddRow] [ text "+"]
                     ]
@@ -345,6 +403,75 @@ makeContextInput model =
         ([ text "Context Types: " ] ++ contextRows ++
          [ button [onClick AddContext, style "margin-top" "4px"] [text "+ Add Context"] ])
 
+
+makePolicyInput : Model -> Html Msg
+makePolicyInput model =
+    let
+        -- Which policies are already added
+        hasLogger = List.any (\p -> case p of
+            Logger _ -> True
+            _ -> False) model.smPolicies
+        hasDeferQueue = List.any (\p -> case p of
+            DeferQueue _ -> True
+            _ -> False) model.smPolicies
+        hasThreadSafe = List.any (\p -> case p of
+            ThreadSafe _ -> True
+            _ -> False) model.smPolicies
+
+        -- Available options for the "Add" dropdown
+        availableOptions =
+            (if not hasLogger then [option [value "logger"] [text "Logger"]] else [])
+            ++ (if not hasDeferQueue then [option [value "defer_queue"] [text "Defer Queue"]] else [])
+            ++ (if not hasThreadSafe then [option [value "thread_safe"] [text "Thread Safe"]] else [])
+
+        addDropdown =
+            if List.isEmpty availableOptions then
+                text ""
+            else
+                select [onInput AddPolicy]
+                    ([option [value ""] [text "+ Add Policy"]] ++ availableOptions)
+
+        -- Render each added policy
+        policyRow idx policy =
+            let
+                (label, subOptions, currentValue) = case policy of
+                    Logger fmt ->
+                        ( "Logger"
+                        , [ option [value "printf", selected (fmt == Printf)] [text "printf"]
+                          , option [value "std_print", selected (fmt == StdPrint)] [text "std::print"]
+                          , option [value "empty", selected (fmt == EmptyLog)] [text "empty"]
+                          ]
+                        , ""
+                        )
+                    DeferQueue qt ->
+                        ( "Defer Queue"
+                        , [ option [value "std::deque", selected (qt == "std::deque")] [text "std::deque"]
+                          , option [value "std::queue", selected (qt == "std::queue")] [text "std::queue"]
+                          ]
+                        , qt
+                        )
+                    ThreadSafe mt ->
+                        ( "Thread Safe"
+                        , [ option [value "std::mutex", selected (mt == "std::mutex")] [text "std::mutex"]
+                          , option [value "std::shared_mutex", selected (mt == "std::shared_mutex")] [text "std::shared_mutex"]
+                          ]
+                        , mt
+                        )
+            in
+            div [style "margin-bottom" "4px", style "display" "flex", style "align-items" "center"]
+                [ span [style "margin-right" "8px", style "font-weight" "bold", style "min-width" "100px"] [text label]
+                , select [onInput (UpdatePolicyOption idx)] subOptions
+                , span [onClick (RemovePolicy idx)
+                       , style "cursor" "pointer"
+                       , style "color" "red"
+                       , style "margin-left" "8px"] [text "x"]
+                ]
+
+        policyRows = List.indexedMap policyRow model.smPolicies
+    in
+    div [style "margin-top" "8px", style "margin-bottom" "8px"]
+        ([ text "SM Policies: " ] ++ policyRows ++ [addDropdown])
+
 -------------------------------------------------------------------------------
 --                     MakeUml string diagram from model                     --
 -------------------------------------------------------------------------------
@@ -372,12 +499,18 @@ generateFullCode model =
     let
         -- Collect all string lists from all machines for event/guard/action headers
         allStringLists = List.concatMap MD.convertToStringList model.machines
+        policyIncludes = Cpp.makePolicyIncludes model.smPolicies
         contextStructs = Cpp.makeContextStructs model.contextTypes
+        loggerStruct = case List.head (List.filter (\p -> case p of
+            Logger _ -> True
+            _ -> False) model.smPolicies) of
+                Just (Logger fmt) -> "\n" ++ Cpp.makeLoggerStruct fmt ++ "\n"
+                _ -> ""
         eventHeader = Cpp.makeEventHeader model.contextTypes allStringLists
         structs = Cpp.generateAllStructs model.machines
         mainContent = model.mainContent
     in
-        Cpp.includeHeader ++ contextStructs ++ eventHeader ++ "\n" ++ structs ++ "\n" ++ mainContent
+        Cpp.includeHeader ++ policyIncludes ++ contextStructs ++ loggerStruct ++ eventHeader ++ "\n" ++ structs ++ "\n" ++ mainContent
 
 -------------------------------------------------------------------------------
 --                              Make code output                             --

@@ -2,12 +2,14 @@ module Col.CppData exposing (make_cpp_data, includeHeader,
                             defaultName,makeConstexprClass,makeEventHeader
                             ,makeFsmRowFromMachine,makeFsmRowFromData
                             ,isSubSM,generateAllStructs,makeContextParams
-                            ,makeContextStructs)
+                            ,makeContextStructs
+                            ,makeLoggerStruct,makePolicyIncludes
+                            ,makePolicyTemplateParams,makePolicyConstructorArgs)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import List.Extra as ListExtra
 import Debug
-import Col.ModelData as MD exposing (Machine,TableDataRow,RowData,Selected(..))
+import Col.ModelData as MD exposing (Machine,TableDataRow,RowData,Selected(..),LogFormat(..),SmPolicy(..))
 
 
 
@@ -467,3 +469,97 @@ handleSpace space str =
         spaces = String.repeat (space - len) " "
     in
         spaces ++ str
+
+
+-------------------------------------------------------------------------------
+--                         SML Policy Code Generation                        --
+-------------------------------------------------------------------------------
+
+makeLoggerStruct : LogFormat -> String
+makeLoggerStruct fmt =
+    let
+        processBody = case fmt of
+            Printf ->
+                "        printf(\"[%s][process_event] %s\\n\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TEvent>());"
+            StdPrint ->
+                "        std::println(\"[{}][process_event] {}\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TEvent>());"
+            EmptyLog -> ""
+
+        guardBody = case fmt of
+            Printf ->
+                "        printf(\"[%s][guard] %s %s %s\\n\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TGuard>(), sml::aux::get_type_name<TEvent>(), (result ? \"[OK]\" : \"[Reject]\"));"
+            StdPrint ->
+                "        std::println(\"[{}][guard] {} {} {}\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TGuard>(), sml::aux::get_type_name<TEvent>(), (result ? \"[OK]\" : \"[Reject]\"));"
+            EmptyLog -> ""
+
+        actionBody = case fmt of
+            Printf ->
+                "        printf(\"[%s][action] %s %s\\n\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TAction>(), sml::aux::get_type_name<TEvent>());"
+            StdPrint ->
+                "        std::println(\"[{}][action] {} {}\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TAction>(), sml::aux::get_type_name<TEvent>());"
+            EmptyLog -> ""
+
+        stateBody = case fmt of
+            Printf ->
+                "        printf(\"[%s][transition] %s -> %s\\n\", sml::aux::get_type_name<SM>(), src.c_str(), dst.c_str());"
+            StdPrint ->
+                "        std::println(\"[{}][transition] {} -> {}\", sml::aux::get_type_name<SM>(), src.c_str(), dst.c_str());"
+            EmptyLog -> ""
+
+        wrapBody body = if String.isEmpty body then " {}" else " {\n" ++ body ++ "\n    }"
+    in
+    "struct my_logger {\n"
+        ++ "    template <class SM, class TEvent>\n"
+        ++ "    void log_process_event(const TEvent&)" ++ wrapBody processBody ++ "\n"
+        ++ "    template <class SM, class TGuard, class TEvent>\n"
+        ++ "    void log_guard(const TGuard&, const TEvent&, bool result)" ++ wrapBody guardBody ++ "\n"
+        ++ "    template <class SM, class TAction, class TEvent>\n"
+        ++ "    void log_action(const TAction&, const TEvent&)" ++ wrapBody actionBody ++ "\n"
+        ++ "    template <class SM, class TSrcState, class TDstState>\n"
+        ++ "    void log_state_change(const TSrcState& src, const TDstState& dst)" ++ wrapBody stateBody ++ "\n"
+        ++ "};\n"
+
+
+makePolicyIncludes : List SmPolicy -> String
+makePolicyIncludes policies =
+    let
+        includeFor policy =
+            case policy of
+                Logger Printf -> "#include <cstdio>\n"
+                Logger StdPrint -> "#include <print>\n"
+                Logger EmptyLog -> ""
+                DeferQueue qt ->
+                    if String.contains "deque" qt then "#include <deque>\n"
+                    else if String.contains "queue" qt then "#include <queue>\n"
+                    else ""
+                ThreadSafe _ -> "#include <mutex>\n"
+    in
+    List.map includeFor policies
+        |> List.filter (not << String.isEmpty)
+        |> ListExtra.unique
+        |> String.concat
+
+
+makePolicyTemplateParams : List SmPolicy -> String
+makePolicyTemplateParams policies =
+    let
+        paramFor policy =
+            case policy of
+                Logger _ -> "sml::logger<my_logger>"
+                DeferQueue qt -> "sml::defer_queue<" ++ qt ++ ">"
+                ThreadSafe mt -> "sml::thread_safe<" ++ mt ++ ">"
+    in
+    case policies of
+        [] -> ""
+        _ -> ", " ++ (List.map paramFor policies |> String.join ", ")
+
+
+makePolicyConstructorArgs : List SmPolicy -> String
+makePolicyConstructorArgs policies =
+    let
+        hasLogger = List.any (\p -> case p of
+            Logger _ -> True
+            _ -> False) policies
+    in
+    if hasLogger then "logger"
+    else ""

@@ -1,4 +1,4 @@
-module NewModel exposing (testPlantuml,testExtract,testSubSm,testContextInjection,testRowOperations,testLocalStorage)
+module NewModel exposing (testPlantuml,testExtract,testSubSm,testContextInjection,testRowOperations,testLocalStorage,testSmPolicies)
 
 import Col.ModelData exposing (..)
 import Expect
@@ -76,6 +76,7 @@ testModel =
     , activeMachine = 0
     , mainContent = "Main Content Here"
     , contextTypes = []
+    , smPolicies = []
     }
 
 
@@ -466,7 +467,7 @@ testContextInjection =
         , test "makeMain with no contexts" <|
             \_ ->
                 let
-                    result = DF.makeMain "SM" []
+                    result = DF.makeMain "SM" [] "" ""
                 in
                 Expect.all
                     [ \r -> Expect.equal True (String.contains "sml::sm<SM> sm{};" r)
@@ -475,7 +476,7 @@ testContextInjection =
         , test "makeMain with one context" <|
             \_ ->
                 let
-                    result = DF.makeMain "SM" ["MyCtx"]
+                    result = DF.makeMain "SM" ["MyCtx"] "" ""
                 in
                 Expect.all
                     [ \r -> Expect.equal True (String.contains "MyCtx ctx_{};" r)
@@ -484,7 +485,7 @@ testContextInjection =
         , test "makeMain with two contexts" <|
             \_ ->
                 let
-                    result = DF.makeMain "SM" ["Ctx1", "Ctx2"]
+                    result = DF.makeMain "SM" ["Ctx1", "Ctx2"] "" ""
                 in
                 Expect.all
                     [ \r -> Expect.equal True (String.contains "Ctx1 ctx_0{};" r)
@@ -523,6 +524,7 @@ testRowOperations =
             , activeMachine = 0
             , mainContent = ""
             , contextTypes = []
+            , smPolicies = []
             }
 
         getStartStates model =
@@ -630,6 +632,7 @@ testLocalStorage =
                         , activeMachine = 1
                         , mainContent = "int main() {}"
                         , contextTypes = ["MyCtx", "Logger"]
+                        , smPolicies = []
                         }
                     encoded = E.encode 0 (encodeModel model)
                     decoded = D.decodeString modelDecoder encoded
@@ -650,4 +653,155 @@ testLocalStorage =
                     decoded = D.decodeString modelDecoder "null"
                 in
                 Expect.err decoded
+        ]
+
+
+-------------------------------------------------------------------------------
+--                         SM Policies Tests                                  --
+-------------------------------------------------------------------------------
+
+testSmPolicies : Test
+testSmPolicies =
+    describe "SM Policies"
+        [ test "makePolicyTemplateParams with no policies" <|
+            \_ ->
+                Expect.equal "" (makePolicyTemplateParams [])
+
+        , test "makePolicyTemplateParams with logger" <|
+            \_ ->
+                Expect.equal ", sml::logger<my_logger>" (makePolicyTemplateParams [Logger Printf])
+
+        , test "makePolicyTemplateParams with all three" <|
+            \_ ->
+                let
+                    policies = [Logger StdPrint, DeferQueue "std::deque", ThreadSafe "std::mutex"]
+                    result = makePolicyTemplateParams policies
+                in
+                Expect.equal ", sml::logger<my_logger>, sml::defer_queue<std::deque>, sml::thread_safe<std::mutex>" result
+
+        , test "makePolicyIncludes with printf logger" <|
+            \_ ->
+                let result = makePolicyIncludes [Logger Printf]
+                in Expect.equal "#include <cstdio>\n" result
+
+        , test "makePolicyIncludes with std::print logger" <|
+            \_ ->
+                let result = makePolicyIncludes [Logger StdPrint]
+                in Expect.equal "#include <print>\n" result
+
+        , test "makePolicyIncludes with empty logger" <|
+            \_ ->
+                let result = makePolicyIncludes [Logger EmptyLog]
+                in Expect.equal "" result
+
+        , test "makePolicyIncludes with defer queue" <|
+            \_ ->
+                let result = makePolicyIncludes [DeferQueue "std::deque"]
+                in Expect.equal "#include <deque>\n" result
+
+        , test "makePolicyIncludes with thread safe" <|
+            \_ ->
+                let result = makePolicyIncludes [ThreadSafe "std::mutex"]
+                in Expect.equal "#include <mutex>\n" result
+
+        , test "makePolicyConstructorArgs with logger" <|
+            \_ ->
+                Expect.equal "logger" (makePolicyConstructorArgs [Logger Printf])
+
+        , test "makePolicyConstructorArgs without logger" <|
+            \_ ->
+                Expect.equal "" (makePolicyConstructorArgs [DeferQueue "std::deque"])
+
+        , test "makeLoggerStruct Printf contains printf" <|
+            \_ ->
+                let result = makeLoggerStruct Printf
+                in
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "struct my_logger" r)
+                    , \r -> Expect.equal True (String.contains "printf(" r)
+                    , \r -> Expect.equal True (String.contains "log_process_event" r)
+                    , \r -> Expect.equal True (String.contains "log_state_change" r)
+                    ] result
+
+        , test "makeLoggerStruct StdPrint contains std::println" <|
+            \_ ->
+                let result = makeLoggerStruct StdPrint
+                in
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "struct my_logger" r)
+                    , \r -> Expect.equal True (String.contains "std::println(" r)
+                    ] result
+
+        , test "makeLoggerStruct EmptyLog has empty bodies" <|
+            \_ ->
+                let result = makeLoggerStruct EmptyLog
+                in
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "struct my_logger" r)
+                    , \r -> Expect.equal False (String.contains "printf" r)
+                    , \r -> Expect.equal False (String.contains "std::println" r)
+                    ] result
+
+        , test "makeMain with logger policy" <|
+            \_ ->
+                let
+                    policyParams = makePolicyTemplateParams [Logger Printf]
+                    policyArgs = makePolicyConstructorArgs [Logger Printf]
+                    result = DF.makeMain "SM" [] policyParams policyArgs
+                in
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "my_logger logger;" r)
+                    , \r -> Expect.equal True (String.contains "sml::sm<SM, sml::logger<my_logger>> sm{logger};" r)
+                    ] result
+
+        , test "makeMain with logger + context" <|
+            \_ ->
+                let
+                    policies = [Logger Printf]
+                    policyParams = makePolicyTemplateParams policies
+                    policyArgs = makePolicyConstructorArgs policies
+                    result = DF.makeMain "SM" ["MyCtx"] policyParams policyArgs
+                in
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "my_logger logger;" r)
+                    , \r -> Expect.equal True (String.contains "MyCtx ctx_{};" r)
+                    , \r -> Expect.equal True (String.contains "sml::sm<SM, sml::logger<my_logger>> sm{logger, ctx_};" r)
+                    ] result
+
+        , test "makeMain with all policies + context" <|
+            \_ ->
+                let
+                    policies = [Logger Printf, DeferQueue "std::deque", ThreadSafe "std::mutex"]
+                    policyParams = makePolicyTemplateParams policies
+                    policyArgs = makePolicyConstructorArgs policies
+                    result = DF.makeMain "SM" ["Ctx1"] policyParams policyArgs
+                in
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "sml::sm<SM, sml::logger<my_logger>, sml::defer_queue<std::deque>, sml::thread_safe<std::mutex>>" r)
+                    , \r -> Expect.equal True (String.contains "sm{logger, ctx_};" r)
+                    ] result
+
+        , test "encode/decode round-trip with policies" <|
+            \_ ->
+                let
+                    model =
+                        { machines = [testMachine]
+                        , activeMachine = 0
+                        , mainContent = "test"
+                        , contextTypes = []
+                        , smPolicies = [Logger StdPrint, DeferQueue "std::deque", ThreadSafe "std::shared_mutex"]
+                        }
+                    encoded = E.encode 0 (encodeModel model)
+                    decoded = D.decodeString modelDecoder encoded
+                in
+                Expect.equal (Ok model) decoded
+
+        , test "decode model without smPolicies field falls back to empty" <|
+            \_ ->
+                let
+                    json = """{"machines":[],"activeMachine":0,"mainContent":"x","contextTypes":[]}"""
+                    decoded = D.decodeString modelDecoder json
+                    expected = { machines = [], activeMachine = 0, mainContent = "x", contextTypes = [], smPolicies = [] }
+                in
+                Expect.equal (Ok expected) decoded
         ]
