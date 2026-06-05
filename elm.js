@@ -5472,10 +5472,14 @@ var $author$project$Col$Default$makeContextVarName = F2(
 	function (contextTypes, idx) {
 		return ($elm$core$List$length(contextTypes) === 1) ? 'ctx_' : ('ctx_' + $elm$core$String$fromInt(idx));
 	});
+var $elm$core$Basics$not = _Basics_not;
 var $author$project$Col$Default$smlStr = 'sml::sm<';
 var $elm$core$String$trim = _String_trim;
-var $author$project$Col$Default$makeMain = F2(
-	function (name, contextTypes) {
+var $author$project$Col$Default$makeMain = F4(
+	function (name, contextTypes, policyParams, policyConstructorArg) {
+		var loggerDecl = (!$elm$core$String$isEmpty(policyConstructorArg)) ? ('    my_logger ' + (policyConstructorArg + ';\n')) : '';
+		var loggerArgList = (!$elm$core$String$isEmpty(policyConstructorArg)) ? _List_fromArray(
+			[policyConstructorArg]) : _List_Nil;
 		var ctxDecls = $elm$core$String$concat(
 			A2(
 				$elm$core$List$indexedMap,
@@ -5484,18 +5488,19 @@ var $author$project$Col$Default$makeMain = F2(
 						return '    ' + (t + (' ' + (A2($author$project$Col$Default$makeContextVarName, contextTypes, i) + '{};\n')));
 					}),
 				contextTypes));
-		var ctxArgs = A2(
-			$elm$core$String$join,
-			', ',
-			A2(
-				$elm$core$List$indexedMap,
-				F2(
-					function (i, _v0) {
-						return A2($author$project$Col$Default$makeContextVarName, contextTypes, i);
-					}),
-				contextTypes));
-		var smDecl = '    ' + ($author$project$Col$Default$smlStr + (name + ('> sm{' + (ctxArgs + '};'))));
-		var output = _Utils_ap(ctxDecls, smDecl);
+		var ctxArgList = A2(
+			$elm$core$List$indexedMap,
+			F2(
+				function (i, _v0) {
+					return A2($author$project$Col$Default$makeContextVarName, contextTypes, i);
+				}),
+			contextTypes);
+		var allArgs = _Utils_ap(loggerArgList, ctxArgList);
+		var argsStr = A2($elm$core$String$join, ', ', allArgs);
+		var smDecl = '    ' + ($author$project$Col$Default$smlStr + (name + (policyParams + ('> sm{' + (argsStr + '};')))));
+		var output = _Utils_ap(
+			loggerDecl,
+			_Utils_ap(ctxDecls, smDecl));
 		return A2(
 			$lukewestby$elm_string_interpolate$String$Interpolate$interpolate,
 			$author$project$Col$Default$mainStr,
@@ -5520,13 +5525,14 @@ var $author$project$Col$ModelData$init = function (_v0) {
 			contextTypes: _List_Nil,
 			machines: _List_fromArray(
 				[defaultMachine]),
-			mainContent: A2($author$project$Col$Default$makeMain, $author$project$Col$Default$defaultName, _List_Nil)
+			mainContent: A4($author$project$Col$Default$makeMain, $author$project$Col$Default$defaultName, _List_Nil, '', ''),
+			smPolicies: _List_Nil
 		},
 		$elm$core$Platform$Cmd$none);
 };
-var $author$project$Col$ModelData$Model = F4(
-	function (machines, activeMachine, mainContent, contextTypes) {
-		return {activeMachine: activeMachine, contextTypes: contextTypes, machines: machines, mainContent: mainContent};
+var $author$project$Col$ModelData$Model = F5(
+	function (machines, activeMachine, mainContent, contextTypes, smPolicies) {
+		return {activeMachine: activeMachine, contextTypes: contextTypes, machines: machines, mainContent: mainContent, smPolicies: smPolicies};
 	});
 var $elm$json$Json$Decode$field = _Json_decodeField;
 var $elm$json$Json$Decode$int = _Json_decodeInt;
@@ -5592,9 +5598,61 @@ var $author$project$Col$ModelData$machineDecoder = A3(
 		$elm$json$Json$Decode$field,
 		'tableData',
 		$elm$json$Json$Decode$list($author$project$Col$ModelData$tableDataRowDecoder)));
-var $elm$json$Json$Decode$map4 = _Json_map4;
-var $author$project$Col$ModelData$modelDecoder = A5(
-	$elm$json$Json$Decode$map4,
+var $author$project$Col$ModelData$DeferQueue = function (a) {
+	return {$: 'DeferQueue', a: a};
+};
+var $author$project$Col$ModelData$Logger = function (a) {
+	return {$: 'Logger', a: a};
+};
+var $author$project$Col$ModelData$ThreadSafe = function (a) {
+	return {$: 'ThreadSafe', a: a};
+};
+var $elm$json$Json$Decode$andThen = _Json_andThen;
+var $elm$json$Json$Decode$fail = _Json_fail;
+var $author$project$Col$ModelData$EmptyLog = {$: 'EmptyLog'};
+var $author$project$Col$ModelData$Printf = {$: 'Printf'};
+var $author$project$Col$ModelData$StdPrint = {$: 'StdPrint'};
+var $author$project$Col$ModelData$logFormatDecoder = A2(
+	$elm$json$Json$Decode$andThen,
+	function (s) {
+		switch (s) {
+			case 'printf':
+				return $elm$json$Json$Decode$succeed($author$project$Col$ModelData$Printf);
+			case 'std_print':
+				return $elm$json$Json$Decode$succeed($author$project$Col$ModelData$StdPrint);
+			case 'empty':
+				return $elm$json$Json$Decode$succeed($author$project$Col$ModelData$EmptyLog);
+			default:
+				return $elm$json$Json$Decode$fail('Unknown log format: ' + s);
+		}
+	},
+	$elm$json$Json$Decode$string);
+var $author$project$Col$ModelData$smPolicyDecoder = A2(
+	$elm$json$Json$Decode$andThen,
+	function (t) {
+		switch (t) {
+			case 'logger':
+				return A2(
+					$elm$json$Json$Decode$map,
+					$author$project$Col$ModelData$Logger,
+					A2($elm$json$Json$Decode$field, 'format', $author$project$Col$ModelData$logFormatDecoder));
+			case 'defer_queue':
+				return A2(
+					$elm$json$Json$Decode$map,
+					$author$project$Col$ModelData$DeferQueue,
+					A2($elm$json$Json$Decode$field, 'queueType', $elm$json$Json$Decode$string));
+			case 'thread_safe':
+				return A2(
+					$elm$json$Json$Decode$map,
+					$author$project$Col$ModelData$ThreadSafe,
+					A2($elm$json$Json$Decode$field, 'mutexType', $elm$json$Json$Decode$string));
+			default:
+				return $elm$json$Json$Decode$fail('Unknown policy type: ' + t);
+		}
+	},
+	A2($elm$json$Json$Decode$field, 'type', $elm$json$Json$Decode$string));
+var $author$project$Col$ModelData$modelDecoder = A6(
+	$elm$json$Json$Decode$map5,
 	$author$project$Col$ModelData$Model,
 	A2(
 		$elm$json$Json$Decode$field,
@@ -5605,7 +5663,16 @@ var $author$project$Col$ModelData$modelDecoder = A5(
 	A2(
 		$elm$json$Json$Decode$field,
 		'contextTypes',
-		$elm$json$Json$Decode$list($elm$json$Json$Decode$string)));
+		$elm$json$Json$Decode$list($elm$json$Json$Decode$string)),
+	$elm$json$Json$Decode$oneOf(
+		_List_fromArray(
+			[
+				A2(
+				$elm$json$Json$Decode$field,
+				'smPolicies',
+				$elm$json$Json$Decode$list($author$project$Col$ModelData$smPolicyDecoder)),
+				$elm$json$Json$Decode$succeed(_List_Nil)
+			])));
 var $author$project$Main$initWithFlags = function (flags) {
 	var _v0 = A2($elm$json$Json$Decode$decodeValue, $author$project$Col$ModelData$modelDecoder, flags);
 	if (_v0.$ === 'Ok') {
@@ -5665,7 +5732,6 @@ var $elm$core$List$member = F2(
 			},
 			xs);
 	});
-var $elm$core$Basics$not = _Basics_not;
 var $author$project$Col$ModelData$filterOutInvalids = F2(
 	function (state, lstInvalids) {
 		return !A2($elm$core$List$member, state, lstInvalids);
@@ -6951,13 +7017,108 @@ var $author$project$Col$CppData$makeEventHeader = F2(
 			events,
 			_Utils_ap(guards, actions));
 	});
+var $author$project$Col$CppData$makeLoggerStruct = function (fmt) {
+	var wrapBody = function (body) {
+		return $elm$core$String$isEmpty(body) ? ' {}' : (' {\n' + (body + '\n    }'));
+	};
+	var stateBody = function () {
+		switch (fmt.$) {
+			case 'Printf':
+				return '        printf(\"[%s][transition] %s -> %s\\n\", sml::aux::get_type_name<SM>(), src.c_str(), dst.c_str());';
+			case 'StdPrint':
+				return '        std::println(\"[{}][transition] {} -> {}\", sml::aux::get_type_name<SM>(), src.c_str(), dst.c_str());';
+			default:
+				return '';
+		}
+	}();
+	var processBody = function () {
+		switch (fmt.$) {
+			case 'Printf':
+				return '        printf(\"[%s][process_event] %s\\n\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TEvent>());';
+			case 'StdPrint':
+				return '        std::println(\"[{}][process_event] {}\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TEvent>());';
+			default:
+				return '';
+		}
+	}();
+	var guardBody = function () {
+		switch (fmt.$) {
+			case 'Printf':
+				return '        printf(\"[%s][guard] %s %s %s\\n\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TGuard>(), sml::aux::get_type_name<TEvent>(), (result ? \"[OK]\" : \"[Reject]\"));';
+			case 'StdPrint':
+				return '        std::println(\"[{}][guard] {} {} {}\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TGuard>(), sml::aux::get_type_name<TEvent>(), (result ? \"[OK]\" : \"[Reject]\"));';
+			default:
+				return '';
+		}
+	}();
+	var actionBody = function () {
+		switch (fmt.$) {
+			case 'Printf':
+				return '        printf(\"[%s][action] %s %s\\n\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TAction>(), sml::aux::get_type_name<TEvent>());';
+			case 'StdPrint':
+				return '        std::println(\"[{}][action] {} {}\", sml::aux::get_type_name<SM>(), sml::aux::get_type_name<TAction>(), sml::aux::get_type_name<TEvent>());';
+			default:
+				return '';
+		}
+	}();
+	return 'struct my_logger {\n' + ('    template <class SM, class TEvent>\n' + ('    void log_process_event(const TEvent&)' + (wrapBody(processBody) + ('\n' + ('    template <class SM, class TGuard, class TEvent>\n' + ('    void log_guard(const TGuard&, const TEvent&, bool result)' + (wrapBody(guardBody) + ('\n' + ('    template <class SM, class TAction, class TEvent>\n' + ('    void log_action(const TAction&, const TEvent&)' + (wrapBody(actionBody) + ('\n' + ('    template <class SM, class TSrcState, class TDstState>\n' + ('    void log_state_change(const TSrcState& src, const TDstState& dst)' + (wrapBody(stateBody) + ('\n' + '};\n'))))))))))))))));
+};
+var $author$project$Col$CppData$makePolicyIncludes = function (policies) {
+	var includeFor = function (policy) {
+		switch (policy.$) {
+			case 'Logger':
+				switch (policy.a.$) {
+					case 'Printf':
+						var _v1 = policy.a;
+						return '#include <cstdio>\n';
+					case 'StdPrint':
+						var _v2 = policy.a;
+						return '#include <print>\n';
+					default:
+						var _v3 = policy.a;
+						return '';
+				}
+			case 'DeferQueue':
+				var qt = policy.a;
+				return A2($elm$core$String$contains, 'deque', qt) ? '#include <deque>\n' : (A2($elm$core$String$contains, 'queue', qt) ? '#include <queue>\n' : '');
+			default:
+				return '#include <mutex>\n';
+		}
+	};
+	return $elm$core$String$concat(
+		$elm_community$list_extra$List$Extra$unique(
+			A2(
+				$elm$core$List$filter,
+				A2($elm$core$Basics$composeL, $elm$core$Basics$not, $elm$core$String$isEmpty),
+				A2($elm$core$List$map, includeFor, policies))));
+};
 var $author$project$Main$generateFullCode = function (model) {
 	var structs = $author$project$Col$CppData$generateAllStructs(model.machines);
+	var policyIncludes = $author$project$Col$CppData$makePolicyIncludes(model.smPolicies);
 	var mainContent = model.mainContent;
+	var loggerStruct = function () {
+		var _v0 = $elm$core$List$head(
+			A2(
+				$elm$core$List$filter,
+				function (p) {
+					if (p.$ === 'Logger') {
+						return true;
+					} else {
+						return false;
+					}
+				},
+				model.smPolicies));
+		if ((_v0.$ === 'Just') && (_v0.a.$ === 'Logger')) {
+			var fmt = _v0.a.a;
+			return '\n' + ($author$project$Col$CppData$makeLoggerStruct(fmt) + '\n');
+		} else {
+			return '';
+		}
+	}();
 	var contextStructs = $author$project$Col$CppData$makeContextStructs(model.contextTypes);
 	var allStringLists = A2($elm$core$List$concatMap, $author$project$Col$ModelData$convertToStringList, model.machines);
 	var eventHeader = A2($author$project$Col$CppData$makeEventHeader, model.contextTypes, allStringLists);
-	return $author$project$Col$CppData$includeHeader + (contextStructs + (eventHeader + ('\n' + (structs + ('\n' + mainContent)))));
+	return $author$project$Col$CppData$includeHeader + (policyIncludes + (contextStructs + (loggerStruct + (eventHeader + ('\n' + (structs + ('\n' + mainContent)))))));
 };
 var $elm$core$Maybe$map = F2(
 	function (f, maybe) {
@@ -6980,6 +7141,41 @@ var $author$project$Col$ModelData$getRootName = function (model) {
 			},
 			$elm$core$List$head(model.machines)));
 };
+var $author$project$Col$CppData$makePolicyConstructorArgs = function (policies) {
+	var hasLogger = A2(
+		$elm$core$List$any,
+		function (p) {
+			if (p.$ === 'Logger') {
+				return true;
+			} else {
+				return false;
+			}
+		},
+		policies);
+	return hasLogger ? 'logger' : '';
+};
+var $author$project$Col$CppData$makePolicyTemplateParams = function (policies) {
+	var paramFor = function (policy) {
+		switch (policy.$) {
+			case 'Logger':
+				return 'sml::logger<my_logger>';
+			case 'DeferQueue':
+				var qt = policy.a;
+				return 'sml::defer_queue<' + (qt + '>');
+			default:
+				var mt = policy.a;
+				return 'sml::thread_safe<' + (mt + '>');
+		}
+	};
+	if (!policies.b) {
+		return '';
+	} else {
+		return ', ' + A2(
+			$elm$core$String$join,
+			', ',
+			A2($elm$core$List$map, paramFor, policies));
+	}
+};
 var $elm$core$Basics$min = F2(
 	function (x, y) {
 		return (_Utils_cmp(x, y) < 0) ? x : y;
@@ -6989,6 +7185,14 @@ var $elm$core$Tuple$pair = F2(
 	function (a, b) {
 		return _Utils_Tuple2(a, b);
 	});
+var $author$project$Main$regenerateMainContent = function (model) {
+	return A4(
+		$author$project$Col$Default$makeMain,
+		$author$project$Col$ModelData$getRootName(model),
+		model.contextTypes,
+		$author$project$Col$CppData$makePolicyTemplateParams(model.smPolicies),
+		$author$project$Col$CppData$makePolicyConstructorArgs(model.smPolicies));
+};
 var $author$project$Col$ModelData$encodeMaybe = F2(
 	function (encoder, maybe) {
 		if (maybe.$ === 'Just') {
@@ -7056,6 +7260,56 @@ var $author$project$Col$ModelData$encodeMachine = function (machine) {
 				A2($elm$json$Json$Encode$list, $author$project$Col$ModelData$encodeTableDataRow, machine.tableData))
 			]));
 };
+var $author$project$Col$ModelData$encodeLogFormat = function (fmt) {
+	switch (fmt.$) {
+		case 'Printf':
+			return $elm$json$Json$Encode$string('printf');
+		case 'StdPrint':
+			return $elm$json$Json$Encode$string('std_print');
+		default:
+			return $elm$json$Json$Encode$string('empty');
+	}
+};
+var $author$project$Col$ModelData$encodeSmPolicy = function (policy) {
+	switch (policy.$) {
+		case 'Logger':
+			var fmt = policy.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$string('logger')),
+						_Utils_Tuple2(
+						'format',
+						$author$project$Col$ModelData$encodeLogFormat(fmt))
+					]));
+		case 'DeferQueue':
+			var queueType = policy.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$string('defer_queue')),
+						_Utils_Tuple2(
+						'queueType',
+						$elm$json$Json$Encode$string(queueType))
+					]));
+		default:
+			var mutexType = policy.a;
+			return $elm$json$Json$Encode$object(
+				_List_fromArray(
+					[
+						_Utils_Tuple2(
+						'type',
+						$elm$json$Json$Encode$string('thread_safe')),
+						_Utils_Tuple2(
+						'mutexType',
+						$elm$json$Json$Encode$string(mutexType))
+					]));
+	}
+};
 var $author$project$Col$ModelData$encodeModel = function (model) {
 	return $elm$json$Json$Encode$object(
 		_List_fromArray(
@@ -7071,7 +7325,10 @@ var $author$project$Col$ModelData$encodeModel = function (model) {
 				$elm$json$Json$Encode$string(model.mainContent)),
 				_Utils_Tuple2(
 				'contextTypes',
-				A2($elm$json$Json$Encode$list, $elm$json$Json$Encode$string, model.contextTypes))
+				A2($elm$json$Json$Encode$list, $elm$json$Json$Encode$string, model.contextTypes)),
+				_Utils_Tuple2(
+				'smPolicies',
+				A2($elm$json$Json$Encode$list, $author$project$Col$ModelData$encodeSmPolicy, model.smPolicies))
 			]));
 };
 var $author$project$Main$saveModel = _Platform_outgoingPort('saveModel', $elm$json$Json$Encode$string);
@@ -7104,7 +7361,12 @@ var $author$project$Main$renameMachine = F3(
 		var finalModel = isRootMachine ? _Utils_update(
 			newModel,
 			{
-				mainContent: A2($author$project$Col$Default$makeMain, newName, model.contextTypes)
+				mainContent: A4(
+					$author$project$Col$Default$makeMain,
+					newName,
+					model.contextTypes,
+					$author$project$Col$CppData$makePolicyTemplateParams(model.smPolicies),
+					$author$project$Col$CppData$makePolicyConstructorArgs(model.smPolicies))
 			}) : newModel;
 		return _Utils_Tuple2(
 			finalModel,
@@ -7627,10 +7889,12 @@ var $author$project$Main$update = F2(
 					model,
 					{
 						contextTypes: newContextTypes,
-						mainContent: A2(
+						mainContent: A4(
 							$author$project$Col$Default$makeMain,
 							$author$project$Col$ModelData$getRootName(model),
-							newContextTypes)
+							newContextTypes,
+							$author$project$Col$CppData$makePolicyTemplateParams(model.smPolicies),
+							$author$project$Col$CppData$makePolicyConstructorArgs(model.smPolicies))
 					});
 				return _Utils_Tuple2(
 					newModel,
@@ -7649,10 +7913,12 @@ var $author$project$Main$update = F2(
 					model,
 					{
 						contextTypes: newContextTypes,
-						mainContent: A2(
+						mainContent: A4(
 							$author$project$Col$Default$makeMain,
 							$author$project$Col$ModelData$getRootName(model),
-							newContextTypes)
+							newContextTypes,
+							$author$project$Col$CppData$makePolicyTemplateParams(model.smPolicies),
+							$author$project$Col$CppData$makePolicyConstructorArgs(model.smPolicies))
 					});
 				return _Utils_Tuple2(
 					newModel,
@@ -7662,7 +7928,7 @@ var $author$project$Main$update = F2(
 								$author$project$Main$highlightCode(_Utils_Tuple0),
 								$author$project$Main$save(newModel)
 							])));
-			default:
+			case 'UpdateContext':
 				var idx = msg.a;
 				var newValue = msg.b;
 				var newContextTypes = A2(
@@ -7676,10 +7942,131 @@ var $author$project$Main$update = F2(
 					model,
 					{
 						contextTypes: newContextTypes,
-						mainContent: A2(
+						mainContent: A4(
 							$author$project$Col$Default$makeMain,
 							$author$project$Col$ModelData$getRootName(model),
-							newContextTypes)
+							newContextTypes,
+							$author$project$Col$CppData$makePolicyTemplateParams(model.smPolicies),
+							$author$project$Col$CppData$makePolicyConstructorArgs(model.smPolicies))
+					});
+				return _Utils_Tuple2(
+					newModel,
+					$elm$core$Platform$Cmd$batch(
+						_List_fromArray(
+							[
+								$author$project$Main$highlightCode(_Utils_Tuple0),
+								$author$project$Main$save(newModel)
+							])));
+			case 'AddPolicy':
+				var policyType = msg.a;
+				var newPolicy = function () {
+					switch (policyType) {
+						case 'logger':
+							return $elm$core$Maybe$Just(
+								$author$project$Col$ModelData$Logger($author$project$Col$ModelData$Printf));
+						case 'defer_queue':
+							return $elm$core$Maybe$Just(
+								$author$project$Col$ModelData$DeferQueue('std::deque'));
+						case 'thread_safe':
+							return $elm$core$Maybe$Just(
+								$author$project$Col$ModelData$ThreadSafe('std::mutex'));
+						default:
+							return $elm$core$Maybe$Nothing;
+					}
+				}();
+				var newPolicies = function () {
+					if (newPolicy.$ === 'Just') {
+						var p = newPolicy.a;
+						return _Utils_ap(
+							model.smPolicies,
+							_List_fromArray(
+								[p]));
+					} else {
+						return model.smPolicies;
+					}
+				}();
+				var newModel = _Utils_update(
+					model,
+					{
+						mainContent: $author$project$Main$regenerateMainContent(
+							_Utils_update(
+								model,
+								{smPolicies: newPolicies})),
+						smPolicies: newPolicies
+					});
+				return _Utils_Tuple2(
+					newModel,
+					$elm$core$Platform$Cmd$batch(
+						_List_fromArray(
+							[
+								$author$project$Main$highlightCode(_Utils_Tuple0),
+								$author$project$Main$save(newModel)
+							])));
+			case 'RemovePolicy':
+				var idx = msg.a;
+				var newPolicies = A2(
+					$elm$core$List$map,
+					$elm$core$Tuple$second,
+					A2(
+						$elm$core$List$filter,
+						function (_v5) {
+							var i = _v5.a;
+							return !_Utils_eq(i, idx);
+						},
+						A2($elm$core$List$indexedMap, $elm$core$Tuple$pair, model.smPolicies)));
+				var newModel = _Utils_update(
+					model,
+					{
+						mainContent: $author$project$Main$regenerateMainContent(
+							_Utils_update(
+								model,
+								{smPolicies: newPolicies})),
+						smPolicies: newPolicies
+					});
+				return _Utils_Tuple2(
+					newModel,
+					$elm$core$Platform$Cmd$batch(
+						_List_fromArray(
+							[
+								$author$project$Main$highlightCode(_Utils_Tuple0),
+								$author$project$Main$save(newModel)
+							])));
+			default:
+				var idx = msg.a;
+				var newValue = msg.b;
+				var updatePolicy = F2(
+					function (i, policy) {
+						if (_Utils_eq(i, idx)) {
+							switch (policy.$) {
+								case 'Logger':
+									switch (newValue) {
+										case 'printf':
+											return $author$project$Col$ModelData$Logger($author$project$Col$ModelData$Printf);
+										case 'std_print':
+											return $author$project$Col$ModelData$Logger($author$project$Col$ModelData$StdPrint);
+										case 'empty':
+											return $author$project$Col$ModelData$Logger($author$project$Col$ModelData$EmptyLog);
+										default:
+											return policy;
+									}
+								case 'DeferQueue':
+									return $author$project$Col$ModelData$DeferQueue(newValue);
+								default:
+									return $author$project$Col$ModelData$ThreadSafe(newValue);
+							}
+						} else {
+							return policy;
+						}
+					});
+				var newPolicies = A2($elm$core$List$indexedMap, updatePolicy, model.smPolicies);
+				var newModel = _Utils_update(
+					model,
+					{
+						mainContent: $author$project$Main$regenerateMainContent(
+							_Utils_update(
+								model,
+								{smPolicies: newPolicies})),
+						smPolicies: newPolicies
 					});
 				return _Utils_Tuple2(
 					newModel,
@@ -8370,6 +8757,287 @@ var $author$project$Main$makeModelTable = F2(
 					forEachRow(machine.tableData))
 				]));
 	});
+var $author$project$Main$AddPolicy = function (a) {
+	return {$: 'AddPolicy', a: a};
+};
+var $author$project$Main$RemovePolicy = function (a) {
+	return {$: 'RemovePolicy', a: a};
+};
+var $author$project$Main$UpdatePolicyOption = F2(
+	function (a, b) {
+		return {$: 'UpdatePolicyOption', a: a, b: b};
+	});
+var $elm$html$Html$Attributes$selected = $elm$html$Html$Attributes$boolProperty('selected');
+var $author$project$Main$makePolicyInput = function (model) {
+	var policyRow = F2(
+		function (idx, policy) {
+			var _v3 = function () {
+				switch (policy.$) {
+					case 'Logger':
+						var fmt = policy.a;
+						return _Utils_Tuple3(
+							'Logger',
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$option,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$value('printf'),
+											$elm$html$Html$Attributes$selected(
+											_Utils_eq(fmt, $author$project$Col$ModelData$Printf))
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('printf')
+										])),
+									A2(
+									$elm$html$Html$option,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$value('std_print'),
+											$elm$html$Html$Attributes$selected(
+											_Utils_eq(fmt, $author$project$Col$ModelData$StdPrint))
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('std::print')
+										])),
+									A2(
+									$elm$html$Html$option,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$value('empty'),
+											$elm$html$Html$Attributes$selected(
+											_Utils_eq(fmt, $author$project$Col$ModelData$EmptyLog))
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('empty')
+										]))
+								]),
+							'');
+					case 'DeferQueue':
+						var qt = policy.a;
+						return _Utils_Tuple3(
+							'Defer Queue',
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$option,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$value('std::deque'),
+											$elm$html$Html$Attributes$selected(qt === 'std::deque')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('std::deque')
+										])),
+									A2(
+									$elm$html$Html$option,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$value('std::queue'),
+											$elm$html$Html$Attributes$selected(qt === 'std::queue')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('std::queue')
+										]))
+								]),
+							qt);
+					default:
+						var mt = policy.a;
+						return _Utils_Tuple3(
+							'Thread Safe',
+							_List_fromArray(
+								[
+									A2(
+									$elm$html$Html$option,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$value('std::mutex'),
+											$elm$html$Html$Attributes$selected(mt === 'std::mutex')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('std::mutex')
+										])),
+									A2(
+									$elm$html$Html$option,
+									_List_fromArray(
+										[
+											$elm$html$Html$Attributes$value('std::shared_mutex'),
+											$elm$html$Html$Attributes$selected(mt === 'std::shared_mutex')
+										]),
+									_List_fromArray(
+										[
+											$elm$html$Html$text('std::shared_mutex')
+										]))
+								]),
+							mt);
+				}
+			}();
+			var label = _v3.a;
+			var subOptions = _v3.b;
+			var currentValue = _v3.c;
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'margin-bottom', '4px'),
+						A2($elm$html$Html$Attributes$style, 'display', 'flex'),
+						A2($elm$html$Html$Attributes$style, 'align-items', 'center')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								A2($elm$html$Html$Attributes$style, 'margin-right', '8px'),
+								A2($elm$html$Html$Attributes$style, 'font-weight', 'bold'),
+								A2($elm$html$Html$Attributes$style, 'min-width', '100px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text(label)
+							])),
+						A2(
+						$elm$html$Html$select,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onInput(
+								$author$project$Main$UpdatePolicyOption(idx))
+							]),
+						subOptions),
+						A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick(
+								$author$project$Main$RemovePolicy(idx)),
+								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+								A2($elm$html$Html$Attributes$style, 'color', 'red'),
+								A2($elm$html$Html$Attributes$style, 'margin-left', '8px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('x')
+							]))
+					]));
+		});
+	var policyRows = A2($elm$core$List$indexedMap, policyRow, model.smPolicies);
+	var hasThreadSafe = A2(
+		$elm$core$List$any,
+		function (p) {
+			if (p.$ === 'ThreadSafe') {
+				return true;
+			} else {
+				return false;
+			}
+		},
+		model.smPolicies);
+	var hasLogger = A2(
+		$elm$core$List$any,
+		function (p) {
+			if (p.$ === 'Logger') {
+				return true;
+			} else {
+				return false;
+			}
+		},
+		model.smPolicies);
+	var hasDeferQueue = A2(
+		$elm$core$List$any,
+		function (p) {
+			if (p.$ === 'DeferQueue') {
+				return true;
+			} else {
+				return false;
+			}
+		},
+		model.smPolicies);
+	var availableOptions = _Utils_ap(
+		(!hasLogger) ? _List_fromArray(
+			[
+				A2(
+				$elm$html$Html$option,
+				_List_fromArray(
+					[
+						$elm$html$Html$Attributes$value('logger')
+					]),
+				_List_fromArray(
+					[
+						$elm$html$Html$text('Logger')
+					]))
+			]) : _List_Nil,
+		_Utils_ap(
+			(!hasDeferQueue) ? _List_fromArray(
+				[
+					A2(
+					$elm$html$Html$option,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$value('defer_queue')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('Defer Queue')
+						]))
+				]) : _List_Nil,
+			(!hasThreadSafe) ? _List_fromArray(
+				[
+					A2(
+					$elm$html$Html$option,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$value('thread_safe')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('Thread Safe')
+						]))
+				]) : _List_Nil));
+	var addDropdown = $elm$core$List$isEmpty(availableOptions) ? $elm$html$Html$text('') : A2(
+		$elm$html$Html$select,
+		_List_fromArray(
+			[
+				$elm$html$Html$Events$onInput($author$project$Main$AddPolicy)
+			]),
+		_Utils_ap(
+			_List_fromArray(
+				[
+					A2(
+					$elm$html$Html$option,
+					_List_fromArray(
+						[
+							$elm$html$Html$Attributes$value('')
+						]),
+					_List_fromArray(
+						[
+							$elm$html$Html$text('+ Add Policy')
+						]))
+				]),
+			availableOptions));
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'margin-top', '8px'),
+				A2($elm$html$Html$Attributes$style, 'margin-bottom', '8px')
+			]),
+		_Utils_ap(
+			_List_fromArray(
+				[
+					$elm$html$Html$text('SM Policies: ')
+				]),
+			_Utils_ap(
+				policyRows,
+				_List_fromArray(
+					[addDropdown]))));
+};
 var $author$project$Main$AddMachine = {$: 'AddMachine'};
 var $author$project$Main$RemoveMachine = function (a) {
 	return {$: 'RemoveMachine', a: a};
@@ -8477,6 +9145,7 @@ var $author$project$Main$view = function (model) {
 							[
 								$author$project$Main$makeMachineNameInput(model),
 								$author$project$Main$makeContextInput(model),
+								$author$project$Main$makePolicyInput(model),
 								A2(
 								$elm$html$Html$table,
 								_List_Nil,
