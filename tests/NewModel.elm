@@ -376,13 +376,13 @@ testContextInjection =
                 makeContextParams [] |> Expect.equal ""
         , test "makeContextParams with one context" <|
             \_ ->
-                makeContextParams ["MyCtx"] |> Expect.equal ", MyCtx& ctx"
+                makeContextParams ["MyCtx"] |> Expect.equal ", MyCtx& ctx_"
         , test "makeContextParams with two contexts" <|
             \_ ->
-                makeContextParams ["Ctx1", "Ctx2"] |> Expect.equal ", Ctx1& ctx0, Ctx2& ctx1"
+                makeContextParams ["Ctx1", "Ctx2"] |> Expect.equal ", Ctx1& ctx_0, Ctx2& ctx_1"
         , test "makeContextParams with three contexts" <|
             \_ ->
-                makeContextParams ["A", "B", "C"] |> Expect.equal ", A& ctx0, B& ctx1, C& ctx2"
+                makeContextParams ["A", "B", "C"] |> Expect.equal ", A& ctx_0, B& ctx_1, C& ctx_2"
         , test "makeEventHeader with no context - guard unchanged" <|
             \_ ->
                 let
@@ -400,7 +400,7 @@ testContextInjection =
                     result = makeEventHeader ["MyCtx"] data
                 in
                 Expect.all
-                    [ \r -> Expect.equal True (String.contains "(const auto& event, MyCtx& ctx)" r)
+                    [ \r -> Expect.equal True (String.contains "(const auto& event, MyCtx& ctx_)" r)
                     , \r -> Expect.equal True (String.contains "return true" r)
                     ] result
         , test "makeEventHeader with two contexts - action has both params" <|
@@ -409,7 +409,7 @@ testContextInjection =
                     data = [["s0", "s1", "ev", "", "doStuff"]]
                     result = makeEventHeader ["Ctx1", "Ctx2"] data
                 in
-                Expect.equal True (String.contains "Ctx1& ctx0, Ctx2& ctx1" result)
+                Expect.equal True (String.contains "Ctx1& ctx_0, Ctx2& ctx_1" result)
         , test "makeMain with no contexts" <|
             \_ ->
                 let
@@ -425,8 +425,8 @@ testContextInjection =
                     result = DF.makeMain "SM" ["MyCtx"]
                 in
                 Expect.all
-                    [ \r -> Expect.equal True (String.contains "MyCtx ctx{};" r)
-                    , \r -> Expect.equal True (String.contains "sml::sm<SM> sm{ctx};" r)
+                    [ \r -> Expect.equal True (String.contains "MyCtx ctx_{};" r)
+                    , \r -> Expect.equal True (String.contains "sml::sm<SM> sm{ctx_};" r)
                     ] result
         , test "makeMain with two contexts" <|
             \_ ->
@@ -434,8 +434,8 @@ testContextInjection =
                     result = DF.makeMain "SM" ["Ctx1", "Ctx2"]
                 in
                 Expect.all
-                    [ \r -> Expect.equal True (String.contains "Ctx1 ctx0{};" r)
-                    , \r -> Expect.equal True (String.contains "Ctx2 ctx1{};" r)
-                    , \r -> Expect.equal True (String.contains "sml::sm<SM> sm{ctx0, ctx1};" r)
+                    [ \r -> Expect.equal True (String.contains "Ctx1 ctx_0{};" r)
+                    , \r -> Expect.equal True (String.contains "Ctx2 ctx_1{};" r)
+                    , \r -> Expect.equal True (String.contains "sml::sm<SM> sm{ctx_0, ctx_1};" r)
                     ] result
         ]

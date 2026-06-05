@@ -307,11 +307,12 @@ generateFullCode model =
     let
         -- Collect all string lists from all machines for event/guard/action headers
         allStringLists = List.concatMap MD.convertToStringList model.machines
+        contextStructs = Cpp.makeContextStructs model.contextTypes
         eventHeader = Cpp.makeEventHeader model.contextTypes allStringLists
         structs = Cpp.generateAllStructs model.machines
         mainContent = model.mainContent
     in
-        Cpp.includeHeader ++ eventHeader ++ "\n" ++ structs ++ "\n" ++ mainContent
+        Cpp.includeHeader ++ contextStructs ++ eventHeader ++ "\n" ++ structs ++ "\n" ++ mainContent
 
 -------------------------------------------------------------------------------
 --                              Make code output                             --

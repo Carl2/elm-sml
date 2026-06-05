@@ -425,14 +425,17 @@ makeAliasedTransitionStr : String -> (String -> String) -> List String -> Transi
 makeAliasedTransitionStr fromName aliasId machineNames_ tr =
     case tr.endState of
         Nothing -> fromName ++ systemAttributeStr tr ++ "\n"
-        Just endState -> case endState of
-                             "X" ->
-                                 fromName ++ "-->" ++ "[*]" ++ systemAttributeStr tr ++ "\n"
-                             _ ->
-                                 let
-                                     targetId = if List.member endState machineNames_ then endState else aliasId endState
-                                 in
-                                 fromName ++ "->" ++ targetId ++ systemAttributeStr tr ++ "\n"
+        Just endState ->
+            if String.isEmpty endState then
+                fromName ++ systemAttributeStr tr ++ "\n"
+            else case endState of
+                "X" ->
+                    fromName ++ "-->" ++ "[*]" ++ systemAttributeStr tr ++ "\n"
+                _ ->
+                    let
+                        targetId = if List.member endState machineNames_ then endState else aliasId endState
+                    in
+                    fromName ++ "->" ++ targetId ++ systemAttributeStr tr ++ "\n"
 
 
 plantUmlDataToString : PlantUmlData -> String

@@ -1,7 +1,8 @@
 module Col.CppData exposing (make_cpp_data, includeHeader,
                             defaultName,makeConstexprClass,makeEventHeader
                             ,makeFsmRowFromMachine,makeFsmRowFromData
-                            ,isSubSM,generateAllStructs,makeContextParams)
+                            ,isSubSM,generateAllStructs,makeContextParams
+                            ,makeContextStructs)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import List.Extra as ListExtra
@@ -19,10 +20,23 @@ makeContextParams : List String -> String
 makeContextParams contextTypes =
     case contextTypes of
         [] -> ""
-        [single] -> ", " ++ single ++ "& ctx"
+        [single] -> ", " ++ single ++ "& ctx_"
         multiple ->
-            List.indexedMap (\i t -> ", " ++ t ++ "& ctx" ++ String.fromInt i) multiple
+            List.indexedMap (\i t -> ", " ++ t ++ "& ctx_" ++ String.fromInt i) multiple
                 |> String.concat
+
+
+makeContextStructs : List String -> String
+makeContextStructs contextTypes =
+    let
+        nonEmpty = List.filter (not << String.isEmpty) contextTypes
+    in
+    case nonEmpty of
+        [] -> ""
+        types ->
+            List.map (\t -> "struct " ++ t ++ " {};\n") types
+                |> String.concat
+                |> (\s -> "\n" ++ s)
 eventFmt ="""
 struct {0} {};
 """

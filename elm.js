@@ -5458,7 +5458,7 @@ var $lukewestby$elm_string_interpolate$String$Interpolate$interpolate = F2(
 var $author$project$Col$Default$mainStr = '\nint main(int argc, char *argv[])\n{\n    {0}\n    return 0;\n}\n';
 var $author$project$Col$Default$makeContextVarName = F2(
 	function (contextTypes, idx) {
-		return ($elm$core$List$length(contextTypes) === 1) ? 'ctx' : ('ctx' + $elm$core$String$fromInt(idx));
+		return ($elm$core$List$length(contextTypes) === 1) ? 'ctx_' : ('ctx_' + $elm$core$String$fromInt(idx));
 	});
 var $author$project$Col$Default$smlStr = 'sml::sm<';
 var $elm$core$String$trim = _String_trim;
@@ -5817,11 +5817,15 @@ var $author$project$Col$PlantUml$makeAliasedTransitionStr = F4(
 			return fromName + ($author$project$Col$PlantUml$systemAttributeStr(tr) + '\n');
 		} else {
 			var endState = _v0.a;
-			if (endState === 'X') {
-				return fromName + ('-->' + ('[*]' + ($author$project$Col$PlantUml$systemAttributeStr(tr) + '\n')));
+			if ($elm$core$String$isEmpty(endState)) {
+				return fromName + ($author$project$Col$PlantUml$systemAttributeStr(tr) + '\n');
 			} else {
-				var targetId = A2($elm$core$List$member, endState, machineNames_) ? endState : aliasId(endState);
-				return fromName + ('->' + (targetId + ($author$project$Col$PlantUml$systemAttributeStr(tr) + '\n')));
+				if (endState === 'X') {
+					return fromName + ('-->' + ('[*]' + ($author$project$Col$PlantUml$systemAttributeStr(tr) + '\n')));
+				} else {
+					var targetId = A2($elm$core$List$member, endState, machineNames_) ? endState : aliasId(endState);
+					return fromName + ('->' + (targetId + ($author$project$Col$PlantUml$systemAttributeStr(tr) + '\n')));
+				}
 			}
 		}
 	});
@@ -6656,6 +6660,27 @@ var $author$project$Col$CppData$generateAllStructs = function (machines) {
 			A2($elm$core$List$map, generateOne, sortedMachines)));
 };
 var $author$project$Col$CppData$includeHeader = '#include <boost/sml.hpp>\n\nnamespace sml = boost::sml;\n';
+var $author$project$Col$CppData$makeContextStructs = function (contextTypes) {
+	var nonEmpty = A2(
+		$elm$core$List$filter,
+		A2($elm$core$Basics$composeL, $elm$core$Basics$not, $elm$core$String$isEmpty),
+		contextTypes);
+	if (!nonEmpty.b) {
+		return '';
+	} else {
+		var types = nonEmpty;
+		return function (s) {
+			return '\n' + s;
+		}(
+			$elm$core$String$concat(
+				A2(
+					$elm$core$List$map,
+					function (t) {
+						return 'struct ' + (t + ' {};\n');
+					},
+					types)));
+	}
+};
 var $author$project$Col$CppData$getActionFromLst = function (lst) {
 	if (((((lst.b && lst.b.b) && lst.b.b.b) && lst.b.b.b.b) && lst.b.b.b.b.b) && (!lst.b.b.b.b.b.b)) {
 		var _v1 = lst.b;
@@ -6770,7 +6795,7 @@ var $author$project$Col$CppData$makeContextParams = function (contextTypes) {
 	} else {
 		if (!contextTypes.b.b) {
 			var single = contextTypes.a;
-			return ', ' + (single + '& ctx');
+			return ', ' + (single + '& ctx_');
 		} else {
 			var multiple = contextTypes;
 			return $elm$core$String$concat(
@@ -6778,7 +6803,7 @@ var $author$project$Col$CppData$makeContextParams = function (contextTypes) {
 					$elm$core$List$indexedMap,
 					F2(
 						function (i, t) {
-							return ', ' + (t + ('& ctx' + $elm$core$String$fromInt(i)));
+							return ', ' + (t + ('& ctx_' + $elm$core$String$fromInt(i)));
 						}),
 					multiple));
 		}
@@ -6824,9 +6849,10 @@ var $author$project$Col$CppData$makeEventHeader = F2(
 var $author$project$Main$generateFullCode = function (model) {
 	var structs = $author$project$Col$CppData$generateAllStructs(model.machines);
 	var mainContent = model.mainContent;
+	var contextStructs = $author$project$Col$CppData$makeContextStructs(model.contextTypes);
 	var allStringLists = A2($elm$core$List$concatMap, $author$project$Col$ModelData$convertToStringList, model.machines);
 	var eventHeader = A2($author$project$Col$CppData$makeEventHeader, model.contextTypes, allStringLists);
-	return $author$project$Col$CppData$includeHeader + (eventHeader + ('\n' + (structs + ('\n' + mainContent))));
+	return $author$project$Col$CppData$includeHeader + (contextStructs + (eventHeader + ('\n' + (structs + ('\n' + mainContent)))));
 };
 var $elm$core$Maybe$map = F2(
 	function (f, maybe) {

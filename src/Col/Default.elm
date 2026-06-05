@@ -25,9 +25,9 @@ int main(int argc, char *argv[])
 makeContextVarName : List String -> Int -> String
 makeContextVarName contextTypes idx =
     if List.length contextTypes == 1 then
-        "ctx"
+        "ctx_"
     else
-        "ctx" ++ String.fromInt idx
+        "ctx_" ++ String.fromInt idx
 
 
 makeMain: String -> List String -> String
