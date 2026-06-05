@@ -1,10 +1,11 @@
-module NewModel exposing (testPlantuml,testExtract,testSubSm)
+module NewModel exposing (testPlantuml,testExtract,testSubSm,testContextInjection)
 
 import Col.ModelData exposing (..)
 import Expect
 import Test exposing (..)
 import Col.CppData exposing(..)
 import Col.PlantUml as PU
+import Col.Default as DF
 
 
 testMachine : Machine
@@ -71,6 +72,7 @@ testModel =
     { machines = [testMachine]
     , activeMachine = 0
     , mainContent = "Main Content Here"
+    , contextTypes = []
     }
 
 
@@ -358,5 +360,82 @@ testSubSm =
                     , \r -> Expect.equal True (String.contains "state \"C1\" as ChildSM_C1" r)
                     , \r -> Expect.equal True (String.contains "@startuml" r)
                     , \r -> Expect.equal True (String.contains "@enduml" r)
+                    ] result
+        ]
+
+
+-------------------------------------------------------------------------------
+--                      Context Injection Tests                              --
+-------------------------------------------------------------------------------
+
+testContextInjection : Test
+testContextInjection =
+    describe "Context injection tests"
+        [ test "makeContextParams with no contexts returns empty string" <|
+            \_ ->
+                makeContextParams [] |> Expect.equal ""
+        , test "makeContextParams with one context" <|
+            \_ ->
+                makeContextParams ["MyCtx"] |> Expect.equal ", MyCtx& ctx"
+        , test "makeContextParams with two contexts" <|
+            \_ ->
+                makeContextParams ["Ctx1", "Ctx2"] |> Expect.equal ", Ctx1& ctx0, Ctx2& ctx1"
+        , test "makeContextParams with three contexts" <|
+            \_ ->
+                makeContextParams ["A", "B", "C"] |> Expect.equal ", A& ctx0, B& ctx1, C& ctx2"
+        , test "makeEventHeader with no context - guard unchanged" <|
+            \_ ->
+                let
+                    data = [["s0", "s1", "ev", "myGuard", "myAction"]]
+                    result = makeEventHeader [] data
+                in
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "(const auto& event)" r)
+                    , \r -> Expect.equal False (String.contains "ctx" r)
+                    ] result
+        , test "makeEventHeader with one context - guard has context param" <|
+            \_ ->
+                let
+                    data = [["s0", "s1", "ev", "myGuard", "myAction"]]
+                    result = makeEventHeader ["MyCtx"] data
+                in
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "(const auto& event, MyCtx& ctx)" r)
+                    , \r -> Expect.equal True (String.contains "return true" r)
+                    ] result
+        , test "makeEventHeader with two contexts - action has both params" <|
+            \_ ->
+                let
+                    data = [["s0", "s1", "ev", "", "doStuff"]]
+                    result = makeEventHeader ["Ctx1", "Ctx2"] data
+                in
+                Expect.equal True (String.contains "Ctx1& ctx0, Ctx2& ctx1" result)
+        , test "makeMain with no contexts" <|
+            \_ ->
+                let
+                    result = DF.makeMain "SM" []
+                in
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "sml::sm<SM> sm{};" r)
+                    , \r -> Expect.equal False (String.contains "ctx" r)
+                    ] result
+        , test "makeMain with one context" <|
+            \_ ->
+                let
+                    result = DF.makeMain "SM" ["MyCtx"]
+                in
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "MyCtx ctx{};" r)
+                    , \r -> Expect.equal True (String.contains "sml::sm<SM> sm{ctx};" r)
+                    ] result
+        , test "makeMain with two contexts" <|
+            \_ ->
+                let
+                    result = DF.makeMain "SM" ["Ctx1", "Ctx2"]
+                in
+                Expect.all
+                    [ \r -> Expect.equal True (String.contains "Ctx1 ctx0{};" r)
+                    , \r -> Expect.equal True (String.contains "Ctx2 ctx1{};" r)
+                    , \r -> Expect.equal True (String.contains "sml::sm<SM> sm{ctx0, ctx1};" r)
                     ] result
         ]

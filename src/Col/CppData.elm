@@ -1,7 +1,7 @@
 module Col.CppData exposing (make_cpp_data, includeHeader,
                             defaultName,makeConstexprClass,makeEventHeader
                             ,makeFsmRowFromMachine,makeFsmRowFromData
-                            ,isSubSM,generateAllStructs)
+                            ,isSubSM,generateAllStructs,makeContextParams)
 import String.Interpolate exposing(interpolate)
 import Array exposing (fromList,get)
 import List.Extra as ListExtra
@@ -14,16 +14,25 @@ endStateStr = "X"
 defaultName = "StateMachine"
 constexprFmt = "constexpr static auto {0} = sml::state<class {0}>;"
 wrapSubSm name = "sml::state<" ++ name ++ ">"
+
+makeContextParams : List String -> String
+makeContextParams contextTypes =
+    case contextTypes of
+        [] -> ""
+        [single] -> ", " ++ single ++ "& ctx"
+        multiple ->
+            List.indexedMap (\i t -> ", " ++ t ++ "& ctx" ++ String.fromInt i) multiple
+                |> String.concat
 eventFmt ="""
 struct {0} {};
 """
 
-actionFmt ="""
-auto {0} = [](const auto& event) {};
+actionFmt ctxParams ="""
+auto {0} = [](const auto& event""" ++ ctxParams ++ """) {};
 """
 
-guardFmt ="""
-auto {0} = [](const auto& event) { return true; };
+guardFmt ctxParams ="""
+auto {0} = [](const auto& event""" ++ ctxParams ++ """) { return true; };
 """
 
 includeHeader : String
@@ -223,18 +232,19 @@ interpolateEvent event =
 -------------------------------------------------------------------------------
 
 
-makeEventHeader: List (List String) -> String
-makeEventHeader lstLstStr =
+makeEventHeader: List String -> List (List String) -> String
+makeEventHeader contextTypes lstLstStr =
     let
+        ctxParams = makeContextParams contextTypes
         events = lstLstStr
             |> eventLst
             |> List.foldl (\ev str ->  (interpolateEvent ev) ++ str ) ""
         guards = lstLstStr
             |> guardLst
-            |> List.foldl (\grd str -> (interpolateGuard grd) ++ str) ""
+            |> List.foldl (\grd str -> (interpolateGuard ctxParams grd) ++ str) ""
         actions = lstLstStr
             |> actionLst
-            |> List.foldl (\act str -> (interpolateAction act) ++ str) ""
+            |> List.foldl (\act str -> (interpolateAction ctxParams act) ++ str) ""
     in
         events ++ guards ++ actions
 
@@ -253,10 +263,10 @@ actionLst listOflist =
         |> ListExtra.unique
 
 
-interpolateAction: String -> String
-interpolateAction action =
+interpolateAction: String -> String -> String
+interpolateAction ctxParams action =
     if not (String.isEmpty action) then
-        interpolate actionFmt [action]
+        interpolate (actionFmt ctxParams) [action]
     else
         ""
 
@@ -275,10 +285,10 @@ guardLst listOflist =
         |> ListExtra.unique
 
 
-interpolateGuard: String -> String
-interpolateGuard guard =
+interpolateGuard: String -> String -> String
+interpolateGuard ctxParams guard =
     if not (String.isEmpty guard) then
-        interpolate guardFmt [guard]
+        interpolate (guardFmt ctxParams) [guard]
     else
         ""
 

@@ -22,10 +22,32 @@ int main(int argc, char *argv[])
 """
 
 
+makeContextVarName : List String -> Int -> String
+makeContextVarName contextTypes idx =
+    if List.length contextTypes == 1 then
+        "ctx"
+    else
+        "ctx" ++ String.fromInt idx
 
-makeMain: String ->String
-makeMain name=
+
+makeMain: String -> List String -> String
+makeMain name contextTypes =
     let
-        output = smlStr ++ name ++ "> sm{};"
+        ctxDecls =
+            List.indexedMap
+                (\i t -> "    " ++ t ++ " " ++ makeContextVarName contextTypes i ++ "{};\n")
+                contextTypes
+                |> String.concat
+
+        ctxArgs =
+            List.indexedMap
+                (\i _ -> makeContextVarName contextTypes i)
+                contextTypes
+                |> String.join ", "
+
+        smDecl = "    " ++ smlStr ++ name ++ "> sm{"
+                 ++ ctxArgs ++ "};"
+
+        output = ctxDecls ++ smDecl
     in
-    interpolate mainStr [output]
+    interpolate mainStr [String.trim output]

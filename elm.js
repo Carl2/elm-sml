@@ -5302,6 +5302,9 @@ var $author$project$Col$ModelData$createTableDataRow = function (index) {
 	return {data: $author$project$Col$ModelData$defaultRowData, rowIndex: index, selected: 'No Special'};
 };
 var $author$project$Col$Default$defaultName = 'StateMachine';
+var $elm$core$String$concat = function (strings) {
+	return A2($elm$core$String$join, '', strings);
+};
 var $elm$core$Maybe$andThen = F2(
 	function (callback, maybeValue) {
 		if (maybeValue.$ === 'Just') {
@@ -5453,15 +5456,42 @@ var $lukewestby$elm_string_interpolate$String$Interpolate$interpolate = F2(
 			string);
 	});
 var $author$project$Col$Default$mainStr = '\nint main(int argc, char *argv[])\n{\n    {0}\n    return 0;\n}\n';
+var $author$project$Col$Default$makeContextVarName = F2(
+	function (contextTypes, idx) {
+		return ($elm$core$List$length(contextTypes) === 1) ? 'ctx' : ('ctx' + $elm$core$String$fromInt(idx));
+	});
 var $author$project$Col$Default$smlStr = 'sml::sm<';
-var $author$project$Col$Default$makeMain = function (name) {
-	var output = $author$project$Col$Default$smlStr + (name + '> sm{};');
-	return A2(
-		$lukewestby$elm_string_interpolate$String$Interpolate$interpolate,
-		$author$project$Col$Default$mainStr,
-		_List_fromArray(
-			[output]));
-};
+var $elm$core$String$trim = _String_trim;
+var $author$project$Col$Default$makeMain = F2(
+	function (name, contextTypes) {
+		var ctxDecls = $elm$core$String$concat(
+			A2(
+				$elm$core$List$indexedMap,
+				F2(
+					function (i, t) {
+						return '    ' + (t + (' ' + (A2($author$project$Col$Default$makeContextVarName, contextTypes, i) + '{};\n')));
+					}),
+				contextTypes));
+		var ctxArgs = A2(
+			$elm$core$String$join,
+			', ',
+			A2(
+				$elm$core$List$indexedMap,
+				F2(
+					function (i, _v0) {
+						return A2($author$project$Col$Default$makeContextVarName, contextTypes, i);
+					}),
+				contextTypes));
+		var smDecl = '    ' + ($author$project$Col$Default$smlStr + (name + ('> sm{' + (ctxArgs + '};'))));
+		var output = _Utils_ap(ctxDecls, smDecl);
+		return A2(
+			$lukewestby$elm_string_interpolate$String$Interpolate$interpolate,
+			$author$project$Col$Default$mainStr,
+			_List_fromArray(
+				[
+					$elm$core$String$trim(output)
+				]));
+	});
 var $elm$core$Platform$Cmd$batch = _Platform_batch;
 var $elm$core$Platform$Cmd$none = $elm$core$Platform$Cmd$batch(_List_Nil);
 var $author$project$Col$ModelData$init = function (_v0) {
@@ -5475,9 +5505,10 @@ var $author$project$Col$ModelData$init = function (_v0) {
 	return _Utils_Tuple2(
 		{
 			activeMachine: 0,
+			contextTypes: _List_Nil,
 			machines: _List_fromArray(
 				[defaultMachine]),
-			mainContent: $author$project$Col$Default$makeMain($author$project$Col$Default$defaultName)
+			mainContent: A2($author$project$Col$Default$makeMain, $author$project$Col$Default$defaultName, _List_Nil)
 		},
 		$elm$core$Platform$Cmd$none);
 };
@@ -5716,9 +5747,6 @@ var $elm$core$List$head = function (list) {
 		return $elm$core$Maybe$Nothing;
 	}
 };
-var $elm$core$String$concat = function (strings) {
-	return A2($elm$core$String$join, '', strings);
-};
 var $author$project$Col$PlantUml$getInitialStateFromMachine = function (machine) {
 	return A2(
 		$elm$core$Maybe$withDefault,
@@ -5764,7 +5792,6 @@ var $author$project$Col$PlantUml$guardStra = function (maybeguard) {
 		return $elm$core$Maybe$Just(' [' + (guard + ']'));
 	}
 };
-var $elm$core$String$trim = _String_trim;
 var $author$project$Col$PlantUml$systemAttributeStr = function (tr) {
 	var guard = A2(
 		$elm$core$Maybe$withDefault,
@@ -6707,14 +6734,17 @@ var $author$project$Col$CppData$guardLst = function (listOflist) {
 			_List_Nil,
 			listOflist));
 };
-var $author$project$Col$CppData$actionFmt = '\nauto {0} = [](const auto& event) {};\n';
-var $author$project$Col$CppData$interpolateAction = function (action) {
-	return (!$elm$core$String$isEmpty(action)) ? A2(
-		$lukewestby$elm_string_interpolate$String$Interpolate$interpolate,
-		$author$project$Col$CppData$actionFmt,
-		_List_fromArray(
-			[action])) : '';
+var $author$project$Col$CppData$actionFmt = function (ctxParams) {
+	return '\nauto {0} = [](const auto& event' + (ctxParams + ') {};\n');
 };
+var $author$project$Col$CppData$interpolateAction = F2(
+	function (ctxParams, action) {
+		return (!$elm$core$String$isEmpty(action)) ? A2(
+			$lukewestby$elm_string_interpolate$String$Interpolate$interpolate,
+			$author$project$Col$CppData$actionFmt(ctxParams),
+			_List_fromArray(
+				[action])) : '';
+	});
 var $author$project$Col$CppData$eventFmt = '\nstruct {0} {};\n';
 var $author$project$Col$CppData$interpolateEvent = function (event) {
 	return (!$elm$core$String$isEmpty(event)) ? A2(
@@ -6723,54 +6753,79 @@ var $author$project$Col$CppData$interpolateEvent = function (event) {
 		_List_fromArray(
 			[event])) : '';
 };
-var $author$project$Col$CppData$guardFmt = '\nauto {0} = [](const auto& event) { return true; };\n';
-var $author$project$Col$CppData$interpolateGuard = function (guard) {
-	return (!$elm$core$String$isEmpty(guard)) ? A2(
-		$lukewestby$elm_string_interpolate$String$Interpolate$interpolate,
-		$author$project$Col$CppData$guardFmt,
-		_List_fromArray(
-			[guard])) : '';
+var $author$project$Col$CppData$guardFmt = function (ctxParams) {
+	return '\nauto {0} = [](const auto& event' + (ctxParams + ') { return true; };\n');
 };
-var $author$project$Col$CppData$makeEventHeader = function (lstLstStr) {
-	var guards = A3(
-		$elm$core$List$foldl,
-		F2(
-			function (grd, str) {
-				return _Utils_ap(
-					$author$project$Col$CppData$interpolateGuard(grd),
-					str);
-			}),
-		'',
-		$author$project$Col$CppData$guardLst(lstLstStr));
-	var events = A3(
-		$elm$core$List$foldl,
-		F2(
-			function (ev, str) {
-				return _Utils_ap(
-					$author$project$Col$CppData$interpolateEvent(ev),
-					str);
-			}),
-		'',
-		$author$project$Col$CppData$eventLst(lstLstStr));
-	var actions = A3(
-		$elm$core$List$foldl,
-		F2(
-			function (act, str) {
-				return _Utils_ap(
-					$author$project$Col$CppData$interpolateAction(act),
-					str);
-			}),
-		'',
-		$author$project$Col$CppData$actionLst(lstLstStr));
-	return _Utils_ap(
-		events,
-		_Utils_ap(guards, actions));
+var $author$project$Col$CppData$interpolateGuard = F2(
+	function (ctxParams, guard) {
+		return (!$elm$core$String$isEmpty(guard)) ? A2(
+			$lukewestby$elm_string_interpolate$String$Interpolate$interpolate,
+			$author$project$Col$CppData$guardFmt(ctxParams),
+			_List_fromArray(
+				[guard])) : '';
+	});
+var $author$project$Col$CppData$makeContextParams = function (contextTypes) {
+	if (!contextTypes.b) {
+		return '';
+	} else {
+		if (!contextTypes.b.b) {
+			var single = contextTypes.a;
+			return ', ' + (single + '& ctx');
+		} else {
+			var multiple = contextTypes;
+			return $elm$core$String$concat(
+				A2(
+					$elm$core$List$indexedMap,
+					F2(
+						function (i, t) {
+							return ', ' + (t + ('& ctx' + $elm$core$String$fromInt(i)));
+						}),
+					multiple));
+		}
+	}
 };
+var $author$project$Col$CppData$makeEventHeader = F2(
+	function (contextTypes, lstLstStr) {
+		var events = A3(
+			$elm$core$List$foldl,
+			F2(
+				function (ev, str) {
+					return _Utils_ap(
+						$author$project$Col$CppData$interpolateEvent(ev),
+						str);
+				}),
+			'',
+			$author$project$Col$CppData$eventLst(lstLstStr));
+		var ctxParams = $author$project$Col$CppData$makeContextParams(contextTypes);
+		var guards = A3(
+			$elm$core$List$foldl,
+			F2(
+				function (grd, str) {
+					return _Utils_ap(
+						A2($author$project$Col$CppData$interpolateGuard, ctxParams, grd),
+						str);
+				}),
+			'',
+			$author$project$Col$CppData$guardLst(lstLstStr));
+		var actions = A3(
+			$elm$core$List$foldl,
+			F2(
+				function (act, str) {
+					return _Utils_ap(
+						A2($author$project$Col$CppData$interpolateAction, ctxParams, act),
+						str);
+				}),
+			'',
+			$author$project$Col$CppData$actionLst(lstLstStr));
+		return _Utils_ap(
+			events,
+			_Utils_ap(guards, actions));
+	});
 var $author$project$Main$generateFullCode = function (model) {
 	var structs = $author$project$Col$CppData$generateAllStructs(model.machines);
 	var mainContent = model.mainContent;
 	var allStringLists = A2($elm$core$List$concatMap, $author$project$Col$ModelData$convertToStringList, model.machines);
-	var eventHeader = $author$project$Col$CppData$makeEventHeader(allStringLists);
+	var eventHeader = A2($author$project$Col$CppData$makeEventHeader, model.contextTypes, allStringLists);
 	return $author$project$Col$CppData$includeHeader + (eventHeader + ('\n' + (structs + ('\n' + mainContent))));
 };
 var $elm$core$Maybe$map = F2(
@@ -6805,13 +6860,6 @@ var $elm$core$Basics$min = F2(
 		return (_Utils_cmp(x, y) < 0) ? x : y;
 	});
 var $author$project$Main$openCompilerExplorer = _Platform_outgoingPort('openCompilerExplorer', $elm$json$Json$Encode$string);
-var $elm$core$String$replace = F3(
-	function (before, after, string) {
-		return A2(
-			$elm$core$String$join,
-			after,
-			A2($elm$core$String$split, before, string));
-	});
 var $author$project$Main$renameMachine = F3(
 	function (idx, newName, model) {
 		var updateMachineAt = function (machines) {
@@ -6825,29 +6873,17 @@ var $author$project$Main$renameMachine = F3(
 					}),
 				machines);
 		};
-		var prevRootName = $author$project$Col$ModelData$getRootName(model);
 		var newModel = _Utils_update(
 			model,
 			{
 				machines: updateMachineAt(model.machines)
 			});
 		var isRootMachine = !idx;
-		var finalModel = function () {
-			if (isRootMachine) {
-				var prevContent = _Utils_ap($author$project$Col$Default$smlStr, prevRootName);
-				return _Utils_update(
-					newModel,
-					{
-						mainContent: A3(
-							$elm$core$String$replace,
-							prevContent,
-							_Utils_ap($author$project$Col$Default$smlStr, newName),
-							newModel.mainContent)
-					});
-			} else {
-				return newModel;
-			}
-		}();
+		var finalModel = isRootMachine ? _Utils_update(
+			newModel,
+			{
+				mainContent: A2($author$project$Col$Default$makeMain, newName, model.contextTypes)
+			}) : newModel;
 		return _Utils_Tuple2(
 			finalModel,
 			$author$project$Main$highlightCode(_Utils_Tuple0));
@@ -7216,7 +7252,7 @@ var $author$project$Main$update = F2(
 								$author$project$Main$sendDiagram(
 								$author$project$Main$createPlantUmlDiagram(newModel))
 							])));
-			default:
+			case 'SwitchMachine':
 				var idx = msg.a;
 				var newModel = _Utils_update(
 					model,
@@ -7225,6 +7261,62 @@ var $author$project$Main$update = F2(
 					newModel,
 					$author$project$Main$sendDiagram(
 						$author$project$Main$createPlantUmlDiagram(newModel)));
+			case 'AddContext':
+				var newContextTypes = _Utils_ap(
+					model.contextTypes,
+					_List_fromArray(
+						['']));
+				var newModel = _Utils_update(
+					model,
+					{
+						contextTypes: newContextTypes,
+						mainContent: A2(
+							$author$project$Col$Default$makeMain,
+							$author$project$Col$ModelData$getRootName(model),
+							newContextTypes)
+					});
+				return _Utils_Tuple2(
+					newModel,
+					$author$project$Main$highlightCode(_Utils_Tuple0));
+			case 'RemoveContext':
+				var idx = msg.a;
+				var newContextTypes = _Utils_ap(
+					A2($elm$core$List$take, idx, model.contextTypes),
+					A2($elm$core$List$drop, idx + 1, model.contextTypes));
+				var newModel = _Utils_update(
+					model,
+					{
+						contextTypes: newContextTypes,
+						mainContent: A2(
+							$author$project$Col$Default$makeMain,
+							$author$project$Col$ModelData$getRootName(model),
+							newContextTypes)
+					});
+				return _Utils_Tuple2(
+					newModel,
+					$author$project$Main$highlightCode(_Utils_Tuple0));
+			default:
+				var idx = msg.a;
+				var newValue = msg.b;
+				var newContextTypes = A2(
+					$elm$core$List$indexedMap,
+					F2(
+						function (i, t) {
+							return _Utils_eq(i, idx) ? newValue : t;
+						}),
+					model.contextTypes);
+				var newModel = _Utils_update(
+					model,
+					{
+						contextTypes: newContextTypes,
+						mainContent: A2(
+							$author$project$Col$Default$makeMain,
+							$author$project$Col$ModelData$getRootName(model),
+							newContextTypes)
+					});
+				return _Utils_Tuple2(
+					newModel,
+					$author$project$Main$highlightCode(_Utils_Tuple0));
 		}
 	});
 var $author$project$Main$AddRow = {$: 'AddRow'};
@@ -7297,9 +7389,148 @@ var $author$project$Main$makeCodeOutput = function (model) {
 					]))
 			]));
 };
+var $author$project$Main$AddContext = {$: 'AddContext'};
+var $author$project$Main$RemoveContext = function (a) {
+	return {$: 'RemoveContext', a: a};
+};
+var $author$project$Main$UpdateContext = F2(
+	function (a, b) {
+		return {$: 'UpdateContext', a: a, b: b};
+	});
+var $elm$html$Html$input = _VirtualDom_node('input');
+var $elm$virtual_dom$VirtualDom$Normal = function (a) {
+	return {$: 'Normal', a: a};
+};
+var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
+var $elm$html$Html$Events$on = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$Normal(decoder));
+	});
+var $elm$html$Html$Events$onBlur = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'blur',
+		$elm$json$Json$Decode$succeed(msg));
+};
+var $elm$html$Html$Events$onClick = function (msg) {
+	return A2(
+		$elm$html$Html$Events$on,
+		'click',
+		$elm$json$Json$Decode$succeed(msg));
+};
+var $elm$html$Html$Events$alwaysStop = function (x) {
+	return _Utils_Tuple2(x, true);
+};
+var $elm$virtual_dom$VirtualDom$MayStopPropagation = function (a) {
+	return {$: 'MayStopPropagation', a: a};
+};
+var $elm$html$Html$Events$stopPropagationOn = F2(
+	function (event, decoder) {
+		return A2(
+			$elm$virtual_dom$VirtualDom$on,
+			event,
+			$elm$virtual_dom$VirtualDom$MayStopPropagation(decoder));
+	});
+var $elm$json$Json$Decode$field = _Json_decodeField;
+var $elm$json$Json$Decode$at = F2(
+	function (fields, decoder) {
+		return A3($elm$core$List$foldr, $elm$json$Json$Decode$field, decoder, fields);
+	});
+var $elm$json$Json$Decode$string = _Json_decodeString;
+var $elm$html$Html$Events$targetValue = A2(
+	$elm$json$Json$Decode$at,
+	_List_fromArray(
+		['target', 'value']),
+	$elm$json$Json$Decode$string);
+var $elm$html$Html$Events$onInput = function (tagger) {
+	return A2(
+		$elm$html$Html$Events$stopPropagationOn,
+		'input',
+		A2(
+			$elm$json$Json$Decode$map,
+			$elm$html$Html$Events$alwaysStop,
+			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
+};
+var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
+var $elm$html$Html$span = _VirtualDom_node('span');
+var $elm$html$Html$Attributes$type_ = $elm$html$Html$Attributes$stringProperty('type');
+var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('value');
+var $author$project$Main$makeContextInput = function (model) {
+	var contextRow = F2(
+		function (idx, ctxType) {
+			return A2(
+				$elm$html$Html$div,
+				_List_fromArray(
+					[
+						A2($elm$html$Html$Attributes$style, 'margin-bottom', '4px')
+					]),
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$input,
+						_List_fromArray(
+							[
+								$elm$html$Html$Attributes$type_('text'),
+								$elm$html$Html$Attributes$placeholder('Context type name'),
+								$elm$html$Html$Attributes$value(ctxType),
+								$elm$html$Html$Events$onInput(
+								$author$project$Main$UpdateContext(idx)),
+								$elm$html$Html$Events$onBlur($author$project$Main$MakeUmlDiagram),
+								A2($elm$html$Html$Attributes$style, 'margin-right', '4px')
+							]),
+						_List_Nil),
+						A2(
+						$elm$html$Html$span,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick(
+								$author$project$Main$RemoveContext(idx)),
+								A2($elm$html$Html$Attributes$style, 'cursor', 'pointer'),
+								A2($elm$html$Html$Attributes$style, 'color', 'red'),
+								A2($elm$html$Html$Attributes$style, 'margin-left', '4px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('x')
+							]))
+					]));
+		});
+	var contextRows = A2($elm$core$List$indexedMap, contextRow, model.contextTypes);
+	return A2(
+		$elm$html$Html$div,
+		_List_fromArray(
+			[
+				A2($elm$html$Html$Attributes$style, 'margin-top', '8px'),
+				A2($elm$html$Html$Attributes$style, 'margin-bottom', '8px')
+			]),
+		_Utils_ap(
+			_List_fromArray(
+				[
+					$elm$html$Html$text('Context Types: ')
+				]),
+			_Utils_ap(
+				contextRows,
+				_List_fromArray(
+					[
+						A2(
+						$elm$html$Html$button,
+						_List_fromArray(
+							[
+								$elm$html$Html$Events$onClick($author$project$Main$AddContext),
+								A2($elm$html$Html$Attributes$style, 'margin-top', '4px')
+							]),
+						_List_fromArray(
+							[
+								$elm$html$Html$text('+ Add Context')
+							]))
+					]))));
+};
 var $author$project$Main$makeEventOutput = function (model) {
 	var allStringLists = A2($elm$core$List$concatMap, $author$project$Col$ModelData$convertToStringList, model.machines);
-	var eventCode = '// This could be placed in a header file\n' + $author$project$Col$CppData$makeEventHeader(allStringLists);
+	var eventCode = '// This could be placed in a header file\n' + A2($author$project$Col$CppData$makeEventHeader, model.contextTypes, allStringLists);
 	return A2(
 		$elm$html$Html$div,
 		_List_fromArray(
@@ -7339,60 +7570,6 @@ var $author$project$Main$RenameMachine = F2(
 	function (a, b) {
 		return {$: 'RenameMachine', a: a, b: b};
 	});
-var $elm$html$Html$input = _VirtualDom_node('input');
-var $elm$virtual_dom$VirtualDom$Normal = function (a) {
-	return {$: 'Normal', a: a};
-};
-var $elm$virtual_dom$VirtualDom$on = _VirtualDom_on;
-var $elm$html$Html$Events$on = F2(
-	function (event, decoder) {
-		return A2(
-			$elm$virtual_dom$VirtualDom$on,
-			event,
-			$elm$virtual_dom$VirtualDom$Normal(decoder));
-	});
-var $elm$html$Html$Events$onBlur = function (msg) {
-	return A2(
-		$elm$html$Html$Events$on,
-		'blur',
-		$elm$json$Json$Decode$succeed(msg));
-};
-var $elm$html$Html$Events$alwaysStop = function (x) {
-	return _Utils_Tuple2(x, true);
-};
-var $elm$virtual_dom$VirtualDom$MayStopPropagation = function (a) {
-	return {$: 'MayStopPropagation', a: a};
-};
-var $elm$html$Html$Events$stopPropagationOn = F2(
-	function (event, decoder) {
-		return A2(
-			$elm$virtual_dom$VirtualDom$on,
-			event,
-			$elm$virtual_dom$VirtualDom$MayStopPropagation(decoder));
-	});
-var $elm$json$Json$Decode$field = _Json_decodeField;
-var $elm$json$Json$Decode$at = F2(
-	function (fields, decoder) {
-		return A3($elm$core$List$foldr, $elm$json$Json$Decode$field, decoder, fields);
-	});
-var $elm$json$Json$Decode$string = _Json_decodeString;
-var $elm$html$Html$Events$targetValue = A2(
-	$elm$json$Json$Decode$at,
-	_List_fromArray(
-		['target', 'value']),
-	$elm$json$Json$Decode$string);
-var $elm$html$Html$Events$onInput = function (tagger) {
-	return A2(
-		$elm$html$Html$Events$stopPropagationOn,
-		'input',
-		A2(
-			$elm$json$Json$Decode$map,
-			$elm$html$Html$Events$alwaysStop,
-			A2($elm$json$Json$Decode$map, tagger, $elm$html$Html$Events$targetValue)));
-};
-var $elm$html$Html$Attributes$placeholder = $elm$html$Html$Attributes$stringProperty('placeholder');
-var $elm$html$Html$Attributes$type_ = $elm$html$Html$Attributes$stringProperty('type');
-var $elm$html$Html$Attributes$value = $elm$html$Html$Attributes$stringProperty('value');
 var $author$project$Main$makeMachineNameInput = function (model) {
 	return A2(
 		$elm$html$Html$div,
@@ -7743,13 +7920,6 @@ var $author$project$Main$RemoveMachine = function (a) {
 var $author$project$Main$SwitchMachine = function (a) {
 	return {$: 'SwitchMachine', a: a};
 };
-var $elm$html$Html$Events$onClick = function (msg) {
-	return A2(
-		$elm$html$Html$Events$on,
-		'click',
-		$elm$json$Json$Decode$succeed(msg));
-};
-var $elm$html$Html$span = _VirtualDom_node('span');
 var $author$project$Main$makeTabBar = function (model) {
 	var makeTab = F2(
 		function (idx, machine) {
@@ -7849,6 +8019,7 @@ var $author$project$Main$view = function (model) {
 						_List_fromArray(
 							[
 								$author$project$Main$makeMachineNameInput(model),
+								$author$project$Main$makeContextInput(model),
 								A2(
 								$elm$html$Html$table,
 								_List_Nil,

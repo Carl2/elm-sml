@@ -1,91 +1,97 @@
-#+TITLE: Phase 3 - Context Injection
+#+TITLE: Phase 3 - Context Injection (Multi-Context)
 #+AUTHOR: Carl Olsen
 #+DATE: 2026-06-04
 
 * Feature Overview
 
-Add an optional context type that gets injected into guard and action lambdas.
-The user provides a type name (e.g. =MyContext=); the generated C++ code
-adds a =ContextType& ctx= parameter to lambdas and passes a context instance
+Add support for multiple context types that get injected into guard and action
+lambdas. The user provides type names (e.g. =Ctx1=, =Ctx2=); the generated C++
+code adds context reference parameters to lambdas and passes context instances
 to =sml::sm<>=.
 
 * Goals
 
-- Allow specifying a context type name for the generated state machine
-- Generate guards/actions with context parameter
-- Generate =main()= that constructs and injects the context
-- Keep it simple: user just provides the type name, writes the struct themselves
+- Allow specifying zero or more context type names for the generated state machine
+- Generate guards/actions with all context parameters
+- Generate =main()= that constructs and injects all contexts
+- Keep it simple: user provides type names, writes the structs themselves
 
 * Non-goals
 
-- Generating the context struct definition
-- Per-machine context (one global context for all machines)
+- Generating the context struct definitions
+- Per-machine context (contexts are global across all machines)
 - Context member access helpers or code generation
+- Per-lambda context selection (all lambdas get all contexts)
 
 * Constraints and Assumptions
 
-- Context is global across all machines
-- Guard lambda signature: =[](const auto& event, ContextType& ctx) { return true; }=
-- Action lambda signature: =[](const auto& event, ContextType& ctx) {}=
-- =makeMain= passes context: =ContextType ctx{}; sml::sm<Machine> sm{ctx};=
-- If no context specified, existing signatures remain unchanged
+- Context types are global across all machines
+- Variable naming: 1 context → =ctx=; 2+ contexts → =ctx0=, =ctx1=, ...
+- Guard lambda signature: =[](const auto& event, Ctx1& ctx0, Ctx2& ctx1) { return true; }=
+- Action lambda signature: =[](const auto& event, Ctx1& ctx0, Ctx2& ctx1) {}=
+- =makeMain= passes all contexts: =Ctx1 ctx0{}; Ctx2 ctx1{}; sml::sm<SM> sm{ctx0, ctx1};=
+- If no contexts specified, existing signatures remain unchanged
+- =mainContent= is regenerated (not patched) when context types change
 
-* Risks and Open Questions
+* Architecture
 
-- Should the context parameter be =const&= for guards? (Boost.SML convention)
-- Forward declaration or include needed for context type in generated header?
-
-* High-level Architecture
-
-** Model Changes (Col/ModelData.elm)
+** Model (Col/ModelData.elm)
 
 #+begin_src elm
 type alias Model =
     { machines : List Machine
     , activeMachine : Int
-    , systemName : String
     , mainContent : String
-    , contextType : Maybe String
+    , contextTypes : List String
     }
 #+end_src
 
-** UI Changes (Main.elm)
+** CppData (Col/CppData.elm)
 
-- Text input field for "Context Type" (optional, can be empty)
-- Placed near the system name input
-- =Msg= variant: =UpdateContextType String=
+- =makeContextParams : List String -> String= — builds lambda param suffix
+- =actionFmt= / =guardFmt= now take =ctxParams= string argument
+- =interpolateAction= / =interpolateGuard= take =ctxParams= as first arg
+- =makeEventHeader : List String -> List (List String) -> String= — first param is context types
 
-** C++ Generation (Col/CppData.elm)
+** Default (Col/Default.elm)
 
-- =guardFmt= and =actionFmt= conditionally include =ContextType& ctx=
-- New formatting functions that accept =Maybe String= context type
-- =makeEventHeader= passes context type through
+- =makeMain : String -> List String -> String= — name + contextTypes
+- Generates context variable declarations and passes them to =sml::sm<>=
 
-** Default.elm Changes
+** Main (Main.elm)
 
-- =makeMain= conditionally generates context construction and injection
+- New =Msg= variants: =AddContext=, =RemoveContext Int=, =UpdateContext Int String=
+- =makeContextInput : Model -> Html Msg= — repeatable list UI with +/- buttons
+- Context changes regenerate =mainContent= via =DF.makeMain=
+- =generateFullCode= passes =model.contextTypes= to =Cpp.makeEventHeader=
+- =renameMachine= passes =model.contextTypes= to =DF.makeMain=
 
 * Task List
 
-** TODO Update ModelData with contextType field
-- Add =contextType : Maybe String= to Model
-- Update =init= to set =contextType = Nothing=
+** DONE Update ModelData with contextTypes field
+- Added =contextTypes : List String= to Model
+- Updated =init= to set =contextTypes = []=
 
-** TODO Update Main.elm with context type input
-- Add text input for context type near system name
-- Add =UpdateContextType String= msg variant
-- Update model on input change
+** DONE Update CppData for multi-context lambda generation
+- Added =makeContextParams= helper (exported)
+- =actionFmt= / =guardFmt= parameterized on context params string
+- =interpolateAction= / =interpolateGuard= accept ctxParams
+- =makeEventHeader= takes =List String= (contextTypes) as first param
 
-** TODO Update CppData for context-aware lambda generation
-- Modify =guardFmt= / =actionFmt= to accept optional context type
-- When context is =Just typeName=, include =TypeName& ctx= in lambda params
-- Ensure =makeEventHeader= threads context type through
+** DONE Update Default.elm makeMain with multi-context injection
+- =makeMain : String -> List String -> String=
+- =makeContextVarName= helper for consistent naming (ctx vs ctx0/ctx1)
+- Generates all context declarations and passes to =sml::sm<>=
 
-** TODO Update Default.elm makeMain with context injection
-- When context type is set: generate =ContextType ctx{};= and pass to =sml::sm=
-- When not set: keep existing =makeMain= behavior
+** DONE Update Main.elm with context type UI and message handling
+- Added =AddContext=, =RemoveContext Int=, =UpdateContext Int String= msgs
+- =makeContextInput= renders labelled input list with x buttons and + button
+- All context changes regenerate mainContent
+- =generateFullCode= / =makeEventOutput= pass contextTypes to =makeEventHeader=
+- =renameMachine= uses new =makeMain= signature
 
-** TODO Add tests for context injection
-- Test guard/action lambda output with and without context
-- Test =makeMain= output with and without context
-- Test that empty context string is treated as Nothing
+** DONE Add tests for multi-context injection
+- =makeContextParams= with 0, 1, 2, 3 contexts
+- =makeEventHeader= with 0, 1, 2 contexts (verifies lambda signatures)
+- =DF.makeMain= with 0, 1, 2 contexts (verifies declarations and sm constructor)
+- Total: 37 tests pass (10 new context tests)

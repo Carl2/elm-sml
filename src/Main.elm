@@ -32,6 +32,9 @@ type Msg
       | AddMachine
       | RemoveMachine Int
       | SwitchMachine Int
+      | AddContext
+      | RemoveContext Int
+      | UpdateContext Int String
 
 
 
@@ -122,6 +125,31 @@ update msg model =
             let newModel = { model | activeMachine = idx }
             in (newModel, sendDiagram <| createPlantUmlDiagram newModel)
 
+        AddContext ->
+            let
+                newContextTypes = model.contextTypes ++ [""]
+                newModel = { model | contextTypes = newContextTypes
+                           , mainContent = DF.makeMain (getRootName model) newContextTypes }
+            in
+            (newModel, highlightCode ())
+
+        RemoveContext idx ->
+            let
+                newContextTypes = List.take idx model.contextTypes ++ List.drop (idx + 1) model.contextTypes
+                newModel = { model | contextTypes = newContextTypes
+                           , mainContent = DF.makeMain (getRootName model) newContextTypes }
+            in
+            (newModel, highlightCode ())
+
+        UpdateContext idx newValue ->
+            let
+                newContextTypes =
+                    List.indexedMap (\i t -> if i == idx then newValue else t) model.contextTypes
+                newModel = { model | contextTypes = newContextTypes
+                           , mainContent = DF.makeMain (getRootName model) newContextTypes }
+            in
+            (newModel, highlightCode ())
+
 
 
 
@@ -129,7 +157,6 @@ renameMachine: Int -> String -> Model -> (Model, Cmd msg)
 renameMachine idx newName model =
     let
         isRootMachine = idx == 0
-        prevRootName = getRootName model
 
         updateMachineAt machines =
             List.indexedMap
@@ -146,10 +173,7 @@ renameMachine idx newName model =
         -- If renaming the root machine, also update mainContent
         finalModel =
             if isRootMachine then
-                let
-                    prevContent = DF.smlStr ++ prevRootName
-                in
-                { newModel | mainContent = String.replace prevContent (DF.smlStr ++ newName) newModel.mainContent }
+                { newModel | mainContent = DF.makeMain newName model.contextTypes }
             else
                 newModel
     in
@@ -167,6 +191,7 @@ view model =
             Just machine ->
                 div []
                     [ makeMachineNameInput model
+                    , makeContextInput model
                     , table [] (makeModelTable model machine)
                     , button [onClick AddRow] [ text "+"]
                     , button [onClick DelRow] [ text "-"]
@@ -230,6 +255,31 @@ makeMachineNameInput model =
                , onBlur MakeUmlDiagram] []
         ]
 
+
+makeContextInput : Model -> Html Msg
+makeContextInput model =
+    let
+        contextRow idx ctxType =
+            div [style "margin-bottom" "4px"]
+                [ input [ type_ "text"
+                        , placeholder "Context type name"
+                        , value ctxType
+                        , Html.Events.onInput (UpdateContext idx)
+                        , onBlur MakeUmlDiagram
+                        , style "margin-right" "4px"
+                        ] []
+                , span [onClick (RemoveContext idx)
+                       , style "cursor" "pointer"
+                       , style "color" "red"
+                       , style "margin-left" "4px"] [text "x"]
+                ]
+
+        contextRows = List.indexedMap contextRow model.contextTypes
+    in
+    div [style "margin-top" "8px", style "margin-bottom" "8px"]
+        ([ text "Context Types: " ] ++ contextRows ++
+         [ button [onClick AddContext, style "margin-top" "4px"] [text "+ Add Context"] ])
+
 -------------------------------------------------------------------------------
 --                     MakeUml string diagram from model                     --
 -------------------------------------------------------------------------------
@@ -257,7 +307,7 @@ generateFullCode model =
     let
         -- Collect all string lists from all machines for event/guard/action headers
         allStringLists = List.concatMap MD.convertToStringList model.machines
-        eventHeader = Cpp.makeEventHeader allStringLists
+        eventHeader = Cpp.makeEventHeader model.contextTypes allStringLists
         structs = Cpp.generateAllStructs model.machines
         mainContent = model.mainContent
     in
@@ -288,7 +338,7 @@ makeEventOutput model =
     let
         allStringLists = List.concatMap MD.convertToStringList model.machines
         eventCode = "// This could be placed in a header file\n" 
-                    ++ (Cpp.makeEventHeader allStringLists)
+                    ++ (Cpp.makeEventHeader model.contextTypes allStringLists)
     in
     div [class "code-toolbar"]
         [Keyed.node "pre" [class "line-numbers"]

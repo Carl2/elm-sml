@@ -42,6 +42,7 @@ type alias Model =
     { machines : List Machine
     , activeMachine : Int
     , mainContent : String
+    , contextTypes : List String
     }
 
 type Selected =
@@ -90,7 +91,8 @@ init _ =
     in
     ({ machines = [defaultMachine]
      , activeMachine = 0
-     , mainContent = DF.makeMain DF.defaultName
+     , mainContent = DF.makeMain DF.defaultName []
+     , contextTypes = []
     },Cmd.none)
 
 
